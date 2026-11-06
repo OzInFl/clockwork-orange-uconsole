@@ -4,6 +4,9 @@ Clockwork Orange versions follow [semver](https://semver.org). Each release is a
 Release; Update Suite (`co-update`) and `get.sh` install the latest published one. `LOOKINGGLASS_VERSION` pins
 the [SDR Looking Glass](https://github.com/OzInFl/sdr-looking-glass-uconsole) release each suite version installs.
 
+## [1.0.2] - 2026-11-06
+- Looking Glass 1.0.1: no false 'OP25 software error' when a browser audio tab closes
+
 ## [1.0.1] - 2026-11-06
 Fixes from the first field update test.
 
