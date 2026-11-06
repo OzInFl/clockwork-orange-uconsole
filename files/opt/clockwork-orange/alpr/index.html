@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALPR Watch</title>
+<link rel="stylesheet" href="/leaflet/leaflet.css">
+<script src="/leaflet/leaflet.js"></script>
+<style>
+  :root { --bg:#14110f; --panel:#1d1916; --panel-2:#262019; --line:#3a3027; --text:#f3ece4; --muted:#a8998a;
+    --accent:#ff7a1a; --accent-2:#ffb066; --ok:#5fd38d; --warn:#ffcc4d; --bad:#ff5d5d; --off:#6b5e52; --r:12px; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:15px/1.35 "Nunito Sans","Noto Sans",system-ui,sans-serif; }
+  body { display:grid; grid-template-rows:auto 1fr; overflow:hidden; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; background:linear-gradient(90deg,#2a1a0e,var(--panel) 40%); border-bottom:1px solid var(--line); }
+  .brand { font-weight:800; letter-spacing:.12em; font-size:16px; } .brand b { color:var(--accent); }
+  .sp { flex:1; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-size:13px; white-space:nowrap; }
+  .pill b { color:var(--text); }
+  .pill.ok { border-color:#245a3a; } .pill.ok b { color:var(--ok); }
+  .pill.warn { border-color:#6b5a1f; } .pill.warn b { color:var(--warn); }
+  .pill.bad { border-color:#7a2828; } .pill.bad b { color:var(--bad); }
+  button { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:5px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); } button.pri { background:var(--accent); color:#140c05; border-color:var(--accent); font-weight:700; }
+  button.sm { padding:3px 8px; font-size:13px; } button.stop { border-color:#7a2828; color:var(--bad); }
+  input, select { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:4px 7px; }
+  main { display:grid; grid-template-columns:380px 1fr 400px; gap:10px; padding:10px; min-height:0; }
+  .col { min-height:0; overflow:auto; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; margin-bottom:10px; }
+  .card h3 { margin:0 0 8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); display:flex; gap:8px; align-items:center; }
+  .card h3 .sp { flex:1; }
+  .mut { color:var(--muted); } .small { font-size:12px; }
+  #map { height:100%; border-radius:var(--r); border:1px solid var(--line); }
+  .leaflet-container { background:#0f0d0b; font:inherit; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background:var(--panel); color:var(--text); }
+  #banner { border-radius:var(--r); padding:14px; margin-bottom:10px; background:var(--panel); border:1px solid var(--line); text-align:center; }
+  #banner.alert { background:#3a1010; border-color:var(--bad); animation:pulse 1s ease-in-out 3; }
+  #banner.near { background:#3a2a0e; border-color:var(--warn); }
+  #banner .big { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+  @keyframes pulse { 50% { box-shadow:0 0 0 6px rgba(255,93,93,.35); } }
+  .cam { display:grid; grid-template-columns:54px 1fr auto; gap:8px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); }
+  .arrow { width:46px; height:46px; border-radius:50%; background:var(--panel-2); border:1px solid var(--line); display:grid; place-items:center; font-size:24px; color:var(--accent-2); }
+  .dist { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; text-align:right; }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); margin-right:4px; }
+  .tag.strong { color:var(--bad); border-color:#7a2828; } .tag.medium { color:var(--warn); border-color:#6b5a1f; } .tag.weak { color:var(--muted); }
+  .tag.ahead { color:var(--accent-2); border-color:var(--accent); }
+  .hit { padding:8px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .hit:hover { background:var(--panel-2); }
+  .hit .why { font-size:12px; color:var(--muted); }
+  .rssi { font-variant-numeric:tabular-nums; }
+  .drawer { position:fixed; right:0; top:0; bottom:0; width:min(460px,100%); background:var(--panel); border-left:1px solid var(--line); padding:14px; overflow:auto; display:none; z-index:1500; }
+  .drawer label { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); }
+  .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #toast { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; display:none; z-index:2000; }
+  .empty { padding:14px 4px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><b>ALPR</b> WATCH</span>
+  <span class="pill" id="pBle">Bluetooth <b>—</b></span>
+  <span class="pill" id="pWifi">Wi-Fi <b>—</b></span>
+  <span class="pill" id="pGps">GPS <b>—</b></span>
+  <span class="pill" id="pKnown">known cameras <b>—</b></span>
+  <span class="sp"></span>
+  <button id="coScreen" title="uConsole screen + app launcher in this browser (remote console)" onclick="window.open('https://'+location.hostname+':6080/','co-screen')">&#128421; Screen</button><script>if(/^(127\.|localhost$|\[?::1)/.test(location.hostname))document.getElementById('coScreen').style.display='none'</script>
+  <button id="gear">&#9881;</button>
+</header>
+<main>
+  <div class="col">
+    <div id="banner"><div class="mut small">Nearest known camera</div><div class="big" id="bBig">—</div><div class="small" id="bSub">waiting for GPS</div></div>
+    <div class="card"><h3>Known cameras nearby <span class="sp"></span><span class="small mut" style="letter-spacing:0;text-transform:none" id="kInfo"></span></h3><div id="near"></div></div>
+    <div class="card"><h3>Camera database</h3>
+      <div class="small mut" id="kMeta">—</div>
+      <div class="row" style="margin-top:8px"><span class="small mut">Download within</span><select id="kKm"><option>10</option><option>25</option><option selected>40</option><option>80</option><option>150</option></select><span class="small mut">km</span>
+        <button class="pri sm" id="kGet">&#11015; Download around me</button></div>
+      <div class="small mut" style="margin-top:8px">From OpenStreetMap (<code>surveillance:type=ALPR</code>, the cameras mapped on deflock.me). Stored on the uConsole, so alerts work offline. Needs internet to download.</div>
+    </div>
+  </div>
+  <div style="min-height:0;display:grid;grid-template-rows:1fr auto;gap:6px"><div id="map"></div>
+    <div class="row small mut"><button class="sm" id="meBtn">Me</button><span>● <span style="color:#ff7a1a">known ALPR</span> · ● <span style="color:#ff5d5d">heard by radio</span> · ● <span style="color:#5fd38d">you</span></span></div></div>
+  <div class="col">
+    <div class="card"><h3>Heard by radio <span class="sp"></span><select id="fConf" class="small"><option value="2">strong + medium</option><option value="1">everything (incl. weak)</option><option value="3">strong only</option></select></h3>
+      <div id="hits"></div></div>
+    <div class="card small mut"><b style="color:var(--text)">How detection works.</b> Bluetooth listens for Flock's Penguin solar battery packs, its accessory service and SoundThinking Raven gunshot detectors. Wi-Fi spots the camera's own <code>Flock-XXXXXX</code> hotspot and Flock-registered MACs. <b>Weak</b> matches are chip-vendor prefixes many ordinary devices share: logged, never alarmed. Most cameras only talk on Wi-Fi briefly, so the camera database is the reliable layer.</div>
+  </div>
+</main>
+<div class="drawer" id="set">
+  <div class="row"><b style="font-size:17px">Settings</b><span class="sp"></span><button onclick="$('set').style.display='none'">&#10005;</button></div>
+  <label>Bluetooth detection <input type="checkbox" id="cBle"></label>
+  <label>Wi-Fi detection <input type="checkbox" id="cWifi"></label>
+  <label>Wi-Fi scan every, seconds <input type="number" id="cEvery" style="width:5em"></label>
+  <label>Alert on medium matches too <input type="checkbox" id="cMed"></label>
+  <label>Known-camera alert distance, metres <input type="number" id="cNear" style="width:6em"></label>
+  <label>Sound on the uConsole speaker <input type="checkbox" id="cSnd"></label>
+  <label>Volume (0.1 - 1) <input type="number" step="0.1" id="cVol" style="width:5em"></label>
+  <div class="row" style="margin-top:10px"><button class="pri" id="cSave">Save</button><button id="tRf">&#128266; RF alert</button><button id="tNear">&#128266; Camera alert</button></div>
+  <div class="row" style="margin-top:14px"><a href="/api/export.csv"><button>Export CSV</button></a><a href="/api/export.kml"><button>Export KML</button></a><span class="sp"></span><button class="stop" id="cClr">Clear log</button></div>
+  <div class="small mut" style="margin-top:12px">Passive receive only: nothing is sent to a camera. The uConsole's Wi-Fi can't do monitor mode, so camera probe requests aren't visible; a USB adapter with monitor mode would add them. Signatures: flock-you project (firmware-derived) + IEEE OUI registry.</div>
+</div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id), E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
+function toast(t,ms){const x=$('toast');x.textContent=t;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(()=>x.style.display='none',ms||2600);}
+const ago=t=>{if(!t)return '—';const s=Date.now()/1000-t;return s<60?Math.round(s)+'s':s<3600?Math.round(s/60)+'m':s<86400?Math.round(s/3600)+'h':Math.round(s/86400)+'d';};
+const FT=m=>m<300?Math.round(m*3.281)+' ft':(m/1609).toFixed(m<16000?2:0)+' mi';
+const CARD=b=>['N','NE','E','SE','S','SW','W','NW'][Math.round(b/45)%8];
+let S=null, DEVS={}, map=null, KL=null, HL={}, ME=null, KNOWN=[];
+
+function initMap(){map=L.map('map').setView([39.5,-98.35],4);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  map.getPanes().tilePane.style.filter='invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)';KL=L.layerGroup().addTo(map);}
+async function loadKnown(){KNOWN=await fetch('/api/known').then(r=>r.json());KL.clearLayers();
+  for(const c of KNOWN){const m=L.circleMarker([c.lat,c.lon],{radius:5,color:'#ff7a1a',fillColor:'#ff7a1a',fillOpacity:.8,weight:1}).addTo(KL);
+    m.bindPopup(`<b>${E(c.maker||'ALPR camera')}</b>${c.op?'<br>'+E(c.op):''}${c.dir!=null?'<br>faces '+Math.round(c.dir)+'° '+CARD(c.dir):''}<br><a style="color:#ffb066" target="_blank" href="https://www.openstreetmap.org/node/${c.id}">OSM node ${c.id}</a>`);
+    if(c.dir!=null){const r=.00035,a=c.dir*Math.PI/180;L.polyline([[c.lat,c.lon],[c.lat+r*Math.cos(a),c.lon+r*Math.sin(a)/Math.cos(c.lat*Math.PI/180)]],{color:'#ff7a1a',weight:2}).addTo(KL);}}}
+async function load(){S=await fetch('/api/state').then(r=>r.json());DEVS={};S.devs.forEach(d=>DEVS[d.src+':'+d.addr]=d);
+  const k=S.known;$('kMeta').innerHTML=k.n?`<b style="color:var(--text)">${k.n}</b> cameras within ${k.km} km of ${k.center?k.center.join(', '):'?'} · downloaded ${ago(k.t)} ago`:'No cameras downloaded yet.';
+  $('pKnown').className='pill'+(k.n?' ok':' warn');$('pKnown').querySelector('b').textContent=k.n||'none';
+  cfgUi();tick(S.tick);hits();}
+function tick(t){if(!t)return;const b=t.ble,w=t.wifi;
+  pill('pBle',b.ok?(Date.now()/1000-b.t<30?'scanning':'quiet'):'off',b.ok?'ok':'bad',b.err);
+  pill('pWifi',w.ok?(t.wifi_aps+' APs'):(S&&!S.cfg.wifi?'off':'—'),w.ok?(w.err?'warn':'ok'):'bad',w.err);
+  pill('pGps',t.gps?'fix':'no fix',t.gps?'ok':'warn');
+  if(t.gps){if(!ME){ME=L.circleMarker([t.gps.lat,t.gps.lon],{radius:7,color:'#5fd38d',fillColor:'#5fd38d',fillOpacity:.9}).addTo(map);map.setView([t.gps.lat,t.gps.lon],14);}else ME.setLatLng([t.gps.lat,t.gps.lon]);}
+  const n=t.near||[];$('kInfo').textContent=t.gps?'within '+FT((S?S.cfg.near_m:300)*2):'';
+  $('near').innerHTML=!t.gps?'<div class="empty">Needs a GPS fix.</div>':!KNOWN.length?'<div class="empty">Download the camera database first.</div>':!n.length?'<div class="empty">None nearby. 👍</div>':
+    n.map(c=>`<div class="cam"><div class="arrow" style="transform:rotate(${c.brg}deg)">&#8593;</div><div><b>${E(c.maker||'ALPR camera')}</b> <span class="small mut">${CARD(c.brg)}</span><div>${c.ahead?'<span class="tag ahead">ahead</span>':''}${c.facing?'<span class="tag medium">facing you</span>':''}<span class="small mut">${E(c.op||'')}</span></div></div><div class="dist">${FT(c.m)}</div></div>`).join('');
+  const bn=$('banner'),c=n[0];if(!bn.classList.contains('alert')){bn.className=c&&c.m<=(S?S.cfg.near_m:300)?'near':'';
+    $('bBig').textContent=c?FT(c.m)+' '+CARD(c.brg):(t.gps?'none close':'—');$('bSub').textContent=c?(c.maker||'ALPR camera')+(c.ahead?' · ahead':'')+(c.facing?' · facing you':''):(t.gps?'clear within '+FT((S?S.cfg.near_m:300)*2):'waiting for GPS');}}
+function pill(id,txt,cls,title){const p=$(id);p.className='pill '+(cls||'');p.querySelector('b').textContent=txt;p.title=title||'';}
+function hits(){const min=+$('fConf').value,R={weak:1,medium:2,strong:3};
+  const lst=Object.values(DEVS).filter(d=>R[d.conf]>=min).sort((a,b)=>(R[b.conf]-R[a.conf])||(b.last-a.last));
+  $('hits').innerHTML=lst.length?lst.map(d=>`<div class="hit" data-k="${E(d.src+':'+d.addr)}"><div class="row"><span class="tag ${d.conf}">${d.conf}</span><b>${E(d.name||d.addr)}</b><span class="sp"></span><span class="rssi small">${d.rssi!=null?Math.round(d.rssi)+' dBm':''}</span></div>
+    <div class="small mut">${d.src==='ble'?'Bluetooth':'Wi-Fi'} ${E(d.addr)} · seen ${d.n}× · last ${ago(d.last)} ago</div><div class="why">${d.why.map(E).join('<br>')}</div></div>`).join(''):'<div class="empty">Nothing heard yet. Signatures are checked against every Bluetooth advertisement and Wi-Fi beacon.</div>';
+  for(const d of Object.values(DEVS)){if(d.lat==null||R[d.conf]<min)continue;const k=d.src+':'+d.addr;
+    if(!HL[k])HL[k]=L.circleMarker([d.lat,d.lon],{radius:8,color:'#ff5d5d',fillColor:'#ff5d5d',fillOpacity:.6}).addTo(map).bindPopup(`<b>${E(d.name||d.addr)}</b><br>${d.conf} · ${E(d.why[0])}`);}}
+$('hits').onclick=e=>{const h=e.target.closest('.hit');if(!h)return;const d=DEVS[h.dataset.k];if(d&&d.lat!=null)map.setView([d.lat,d.lon],17);else toast('no position logged for this one');};
+$('fConf').onchange=()=>{Object.values(HL).forEach(m=>map.removeLayer(m));HL={};hits();};
+$('meBtn').onclick=()=>{if(ME)map.setView(ME.getLatLng(),15);else toast('no GPS fix');};
+$('kGet').onclick=async()=>{$('kGet').disabled=true;toast('downloading…',30000);let b={km:+$('kKm').value};
+  const r=await api('/api/known/fetch',b).catch(()=>({err:'request failed'}));$('kGet').disabled=false;
+  toast(r.ok?r.n+' cameras saved':(r.err||'failed'),5000);await loadKnown();load();};
+function cfgUi(){const c=S.cfg;if($('set').style.display==='block')return;$('cBle').checked=c.ble;$('cWifi').checked=c.wifi;$('cEvery').value=c.wifi_every_s;$('cMed').checked=c.alert_medium;
+  $('cNear').value=c.near_m;$('cSnd').checked=c.sound;$('cVol').value=c.volume;}
+$('gear').onclick=()=>$('set').style.display='block';
+$('cSave').onclick=async()=>{await api('/api/cfg',{ble:$('cBle').checked,wifi:$('cWifi').checked,wifi_every_s:+$('cEvery').value,alert_medium:$('cMed').checked,
+  near_m:+$('cNear').value,sound:$('cSnd').checked,volume:+$('cVol').value});$('set').style.display='none';toast('saved');load();};
+$('tRf').onclick=()=>api('/api/test',{});$('tNear').onclick=()=>api('/api/test',{near:1});
+$('cClr').onclick=async()=>{if(!confirm('Delete every logged radio hit?'))return;await api('/api/clear',{db:1});Object.values(HL).forEach(m=>map.removeLayer(m));HL={};load();};
+function beep(){try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.frequency.value=1500;g.gain.value=.15;o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+.35);}catch(e){}}
+function stream(){const es=new EventSource('/api/stream');
+  es.onmessage=e=>{const ev=JSON.parse(e.data);
+    if(ev.t==='tick')tick(ev.d);
+    else if(ev.t==='dev'){const d=ev.d;DEVS[d.src+':'+d.addr]=d;hits();}
+    else if(ev.t==='alert'){const d=ev.d,bn=$('banner');bn.className='alert';beep();
+      if(ev.kind==='rf'){$('bBig').textContent='⚠ '+(d.name||d.addr);$('bSub').textContent=d.conf+' match · '+d.why[0];toast('Flock / Raven signature heard: '+(d.name||d.addr),6000);}
+      else{$('bBig').textContent='⚠ '+FT(d.m)+' '+CARD(d.brg);$('bSub').textContent=(d.maker||'ALPR camera')+(d.ahead?' ahead':'')+(d.facing?' · facing you':'');}
+      setTimeout(()=>bn.classList.remove('alert'),8000);}};
+  es.onerror=()=>{es.close();setTimeout(stream,3000);};}
+initMap();loadKnown().then(load);stream();setInterval(load,30000);
+</script>
+</body>
+</html>

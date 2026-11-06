@@ -1,0 +1,5 @@
+// Clockwork Orange: let netdev members (the uConsole user's services: ALPR Watch, Wireless Census) ask NetworkManager
+// for a Wi-Fi scan. Only the scan action; connecting / changing networks still needs the usual authorization.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.NetworkManager.wifi.scan" && subject.isInGroup("netdev")) return polkit.Result.YES;
+});

@@ -49,6 +49,8 @@ The Hub opens from the **Clockwork Orange** menu folder or desktop icon, or with
 | **System Spy** | 8092 | Find, identify and decode signals: sweep, ACARS, VDL2, AIS, utility meters, digital voice IDs, Meteor-M weather satellites, Zigbee/Thread (with an nRF52840 sniffer) |
 | **GPS Status** | 8093 | Sky plot, SNR, DOP, fix quality, grid square, antenna state |
 | **APRS Monitor** | 8094 | APRS map (online tiles or offline radar view), stations, weather, messages, packet log |
+| **ALPR Watch** | 8095 | Flock Safety / Raven detector on Bluetooth + Wi-Fi (signatures graded strong / medium / weak), plus GPS alerts for known ALPR cameras from OpenStreetMap (the DeFlock data), stored for offline use. Hits logged with position, CSV / KML export |
+| **Wireless Census** | 8096 | Every Bluetooth LE device and Wi-Fi access point around you: vendor, type (phone, wearable, smart home, camera, printer, vehicle...), WPS model, security. Tracker watch alarms when an AirTag / Tile / SmartTag / Chipolo / Google tag separated from its owner keeps following you |
 | **Radiosondes** | 5000 | Weather-balloon tracking (radiosonde_auto_rx). SondeHub upload is off until you turn it on |
 | **Remote console** | 6080 (https) | The uConsole's screen + app launcher in any browser |
 | Meshtastic / MeshCore | 9443 | Both on the AIO V2's SX1262; one radio, so MeshCore pauses meshtasticd while it runs |
@@ -72,7 +74,7 @@ your region's rules. Monitoring laws differ by country and state; what you decod
 | `60-tools` | SDR++, GQRX, CubicSDR, Inspectrum, rtl_433, multimon-ng, direwolf, gpsd on the AIO GPS (`/dev/ttyS0`, read-only `-b` + NMEA init for the CASIC module), SoapySDR, field utils; builds readsb, AIS-catcher, libacars, acarsdec, dumpvdl2 |
 | `70-desktop` | **Hub** (`co-hub`), "Clockwork Orange" menu folder + desktop icons, all generated from `hub/apps.json` |
 | `80-lora` | SX1262 on SPI1: meshtasticd (web UI https://localhost:9443) + MeshCore (`co-lora-run`) |
-| `90-rfapps` | APRS Monitor, Pager Recorder, System Spy, GPS Status (services `co-aprs`, `co-pager`, `co-spy`, `co-gps`; shared libs in `/opt/clockwork-orange/lib`) |
+| `90-rfapps` | APRS Monitor, Pager Recorder, System Spy, GPS Status, ALPR Watch, Wireless Census (services `co-aprs`, `co-pager`, `co-spy`, `co-gps`, `co-alpr`, `co-iot`; a polkit rule lets them request Wi-Fi scans; shared libs in `/opt/clockwork-orange/lib`) |
 | `92-sonde-dsd` | radiosonde_auto_rx (`co-sonde`) and dsd-fme + mbelib (`co-dsd`) |
 | `95-mirror` | Remote console: noVNC over HTTPS (per-device self-signed cert) → wayvnc :5900; log in with your uConsole account password |
 
@@ -97,9 +99,12 @@ the version when the install didn't come from a release tag.
 **Publishing a release** (maintainers): work on `main`, then from a PC with `gh` logged in:
 
 ```powershell
-.	oolselease.ps1 patch                        # or minor / major / 1.2.0;  -Notes "..." adds a summary
-.	oolselease.ps1 1.2.0-beta.1 -Pre            # pre-release: only CO_CHANNEL=beta picks it up
-.	oolselease.ps1 minor -DryRun                # preview the version and changelog
+.	ools
+elease.ps1 patch                        # or minor / major / 1.2.0;  -Notes "..." adds a summary
+.	ools
+elease.ps1 1.2.0-beta.1 -Pre            # pre-release: only CO_CHANNEL=beta picks it up
+.	ools
+elease.ps1 minor -DryRun                # preview the version and changelog
 ```
 
 It bumps `VERSION`, writes the changelog section from the commits since the last tag, tags `vX.Y.Z`, pushes,

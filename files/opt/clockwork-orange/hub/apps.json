@@ -1,5 +1,5 @@
 {
-  "groups": ["Trunking", "Receivers", "Decoders", "Mesh", "Navigation", "Analysis", "System"],
+  "groups": ["Trunking", "Receivers", "Decoders", "Mesh", "Navigation", "Analysis", "Surveillance", "System"],
   "apps": [
     {"id": "lookingglass", "name": "SDR Looking Glass", "desc": "P25 / DMR trunking analyzer", "group": "Trunking",
      "icon": "co-lookingglass", "exec": "co-lookingglass", "desktop": true, "web": "http://{host}:8080/"},
@@ -31,6 +31,10 @@
      "icon": "co-sonde", "exec": "co-sonde", "desktop": true},
     {"id": "gps", "name": "GPS Status", "desc": "Sky plot, signal, fix + antenna (gpsd)", "group": "Navigation",
      "icon": "co-gps", "exec": "co-gps", "web": "http://{host}:8093/"},
+    {"id": "alpr", "name": "ALPR Watch", "desc": "Flock / Raven detector (Bluetooth + Wi-Fi) + known-camera alerts", "group": "Surveillance",
+     "icon": "co-alpr", "exec": "co-alpr", "desktop": true, "web": "http://{host}:8095/"},
+    {"id": "iot", "name": "Wireless Census", "desc": "Bluetooth + Wi-Fi devices around you, trackers following you", "group": "Surveillance",
+     "icon": "co-iot", "exec": "co-iot", "desktop": true, "web": "http://{host}:8096/"},
     {"id": "inspectrum", "name": "Inspectrum", "desc": "Analyze IQ recordings", "group": "Analysis",
      "icon": "co-iq", "exec": "inspectrum"},
     {"id": "btop", "name": "System Monitor", "desc": "CPU, memory, processes", "group": "System",

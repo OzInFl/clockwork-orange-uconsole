@@ -1,0 +1,4 @@
+#!/bin/bash
+# co-alpr - ALPR Watch: Flock / Raven signatures on Bluetooth + Wi-Fi, known ALPR cameras near you (:8095).
+systemctl is-active --quiet co-alpr || sudo systemctl start co-alpr
+exec co-webapp alpr http://127.0.0.1:8095/

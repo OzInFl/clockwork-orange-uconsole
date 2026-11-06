@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireless Census</title>
+<style>
+  :root { --bg:#14110f; --panel:#1d1916; --panel-2:#262019; --line:#3a3027; --text:#f3ece4; --muted:#a8998a;
+    --accent:#ff7a1a; --accent-2:#ffb066; --ok:#5fd38d; --warn:#ffcc4d; --bad:#ff5d5d; --off:#6b5e52; --r:12px; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:15px/1.35 "Nunito Sans","Noto Sans",system-ui,sans-serif; }
+  body { display:grid; grid-template-rows:auto auto 1fr; overflow:hidden; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; background:linear-gradient(90deg,#2a1a0e,var(--panel) 40%); border-bottom:1px solid var(--line); }
+  .brand { font-weight:800; letter-spacing:.12em; font-size:16px; } .brand b { color:var(--accent); }
+  .sp { flex:1; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-size:13px; white-space:nowrap; }
+  .pill b { color:var(--text); }
+  .pill.ok { border-color:#245a3a; } .pill.ok b { color:var(--ok); }
+  .pill.warn { border-color:#6b5a1f; } .pill.warn b { color:var(--warn); }
+  .pill.bad { border-color:#7a2828; } .pill.bad b { color:var(--bad); }
+  button { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:5px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); } button.pri { background:var(--accent); color:#140c05; border-color:var(--accent); font-weight:700; }
+  button.sm { padding:2px 8px; font-size:12px; } button.stop { border-color:#7a2828; color:var(--bad); }
+  input, select { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:4px 7px; }
+  nav { display:flex; gap:4px; padding:6px 10px 0; border-bottom:1px solid var(--line); }
+  nav button { border-radius:9px 9px 0 0; border-bottom:none; } nav button.act { background:var(--panel); color:var(--accent-2); border-color:var(--accent); }
+  .tab { display:none; padding:10px; overflow:auto; min-height:0; } .tab.act { display:block; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; margin-bottom:10px; }
+  .card h3 { margin:0 0 8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .mut { color:var(--muted); } .small { font-size:12px; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:10px; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:10px 14px; }
+  .stat .k { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .stat .v { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; } .stat .v small { font-size:14px; color:var(--muted); font-weight:600; }
+  .stat.bad { border-color:var(--bad); } .stat.bad .v { color:var(--bad); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .bar { display:grid; grid-template-columns:130px 1fr 70px; gap:8px; align-items:center; margin:5px 0; font-size:13px; }
+  .bar .t { height:14px; background:var(--panel-2); border-radius:4px; overflow:hidden; display:flex; }
+  .bar .t i { display:block; height:100%; } .bar .n { text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:5px 6px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); cursor:pointer; }
+  td { padding:5px 6px; border-bottom:1px solid #2a231d; vertical-align:top; }
+  tr.old td { opacity:.45; }
+  .mono { font-family:ui-monospace,Consolas,monospace; font-size:12px; }
+  .cat { display:inline-block; font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; }
+  .sig { display:inline-block; width:46px; height:7px; background:var(--panel-2); border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:5px; } .sig i { display:block; height:100%; }
+  .trk { display:grid; grid-template-columns:1fr auto; gap:6px; }
+  .trk.worry { border-color:var(--bad); background:#2a1414; }
+  .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .drawer { position:fixed; right:0; top:0; bottom:0; width:min(440px,100%); background:var(--panel); border-left:1px solid var(--line); padding:14px; overflow:auto; display:none; z-index:50; }
+  .drawer label { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); }
+  #toast { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; display:none; z-index:60; }
+  #alarm { display:none; position:fixed; inset:auto 14px 14px auto; max-width:420px; background:#3a1010; border:1px solid var(--bad); border-radius:var(--r); padding:12px 14px; z-index:55; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><b>WIRELESS</b> CENSUS</span>
+  <span class="pill" id="pBle">Bluetooth <b>—</b></span>
+  <span class="pill" id="pWifi">Wi-Fi <b>—</b></span>
+  <span class="pill" id="pGps">GPS <b>—</b></span>
+  <span class="sp"></span>
+  <button id="coScreen" title="uConsole screen + app launcher in this browser (remote console)" onclick="window.open('https://'+location.hostname+':6080/','co-screen')">&#128421; Screen</button><script>if(/^(127\.|localhost$|\[?::1)/.test(location.hostname))document.getElementById('coScreen').style.display='none'</script>
+  <button id="gear">&#9881;</button>
+</header>
+<nav id="tabs"><button data-t="ov">Overview</button><button data-t="ble">Bluetooth</button><button data-t="wifi">Wi-Fi</button><button data-t="trk">Trackers</button></nav>
+<div style="min-height:0;display:grid">
+  <div class="tab" id="t-ov">
+    <div class="stats">
+      <div class="stat"><div class="k">Bluetooth now</div><div class="v" id="sB">—</div></div>
+      <div class="stat"><div class="k">Wi-Fi now</div><div class="v" id="sW">—</div></div>
+      <div class="stat"><div class="k">Trackers nearby</div><div class="v" id="sT">—</div></div>
+      <div class="stat" id="sFc"><div class="k">Following you</div><div class="v" id="sF">—</div></div>
+    </div>
+    <div class="two">
+      <div class="card"><h3>What's around (now)</h3><div id="cats"></div><div class="small mut" style="margin-top:6px"><span style="color:#5aa9ff">■</span> Bluetooth &nbsp; <span style="color:#ff9a3d">■</span> Wi-Fi</div></div>
+      <div class="card"><h3>Top vendors (now)</h3><div id="vend"></div></div>
+    </div>
+    <div class="card small mut">Everything here is passive: the uConsole only listens to what devices already broadcast. Phones and many gadgets rotate their Bluetooth address every ~15 minutes, so one phone can show up as several entries over time. Wi-Fi sees access points and IoT hotspots (not phones' probe requests: the built-in radio has no monitor mode).</div>
+  </div>
+  <div class="tab" id="t-ble">
+    <div class="row" style="margin-bottom:8px"><input id="bQ" placeholder="search name / vendor / type / address" style="flex:1;min-width:200px">
+      <select id="bCat"><option value="">every type</option></select><label class="small row"><input type="checkbox" id="bLive" checked> seen in the last 2 min</label><span class="small mut" id="bN"></span></div>
+    <table><thead><tr><th data-s="rssi">Signal</th><th data-s="name">Name</th><th data-s="what">What it is</th><th data-s="vendor">Vendor</th><th data-s="addr">Address</th><th data-s="last">Last</th><th data-s="n">Adv</th></tr></thead><tbody id="bT"></tbody></table>
+  </div>
+  <div class="tab" id="t-wifi">
+    <div class="row" style="margin-bottom:8px"><input id="wQ" placeholder="search SSID / vendor / model / BSSID" style="flex:1;min-width:200px">
+      <select id="wCat"><option value="">every type</option></select><label class="small row"><input type="checkbox" id="wLive" checked> seen in the last 3 min</label><span class="small mut" id="wN"></span></div>
+    <table><thead><tr><th data-s="signal">Signal</th><th data-s="ssid">SSID</th><th data-s="cat">Type</th><th data-s="vendor">Vendor / WPS model</th><th data-s="chan">Ch</th><th data-s="sec">Security</th><th data-s="bssid">BSSID</th><th data-s="last">Last</th></tr></thead><tbody id="wT"></tbody></table>
+  </div>
+  <div class="tab" id="t-trk">
+    <div class="card small mut">Trackers (AirTag / Find My, Tile, SmartTag, Chipolo, Google Find Hub) heard nearby. One is flagged <b style="color:var(--bad)">following you</b> when it's in "separated from owner" mode (or a type that doesn't say) and keeps showing up for <span id="fMin"></span> minutes across <span id="fM"></span> m of your travel. Find My devices <i>near their owner</i> are usually the people around you (or your own phone) and never alarm. Mark your own tags as <b>mine</b> to silence them.</div>
+    <div id="trkL"></div>
+  </div>
+</div>
+<div class="drawer" id="set">
+  <div class="row"><b style="font-size:17px">Settings</b><span class="sp"></span><button onclick="$('set').style.display='none'">&#10005;</button></div>
+  <label>Bluetooth scanning <input type="checkbox" id="cBle"></label>
+  <label>Wi-Fi scanning <input type="checkbox" id="cWifi"></label>
+  <label>Wi-Fi scan every, seconds <input type="number" id="cEvery" style="width:5em"></label>
+  <label>Keep devices for, hours <input type="number" id="cKeep" style="width:5em"></label>
+  <label>Following: seen over at least, minutes <input type="number" id="cFMin" style="width:5em"></label>
+  <label>Following: across at least, metres <input type="number" id="cFM" style="width:6em"></label>
+  <label>Alarm on the uConsole speaker <input type="checkbox" id="cSnd"></label>
+  <label>Volume (0.1 - 1) <input type="number" step="0.1" id="cVol" style="width:5em"></label>
+  <div class="row" style="margin-top:10px"><button class="pri" id="cSave">Save</button><button id="cTest">&#128266; Test alarm</button></div>
+  <div class="row" style="margin-top:14px"><a href="/api/export.csv"><button>Export CSV</button></a><span class="sp"></span><button class="stop" id="cClr">Clear everything</button></div>
+</div>
+<div id="alarm"></div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id), E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
+function toast(t){const x=$('toast');x.textContent=t;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(()=>x.style.display='none',2600);}
+const ago=t=>{if(!t)return '—';const s=Date.now()/1000-t;return s<60?Math.round(s)+'s':s<3600?Math.round(s/60)+'m':s<86400?Math.round(s/3600)+'h':Math.round(s/86400)+'d';};
+const CC={'tracker':'#ff5d5d','phone / computer':'#5aa9ff','audio':'#b48cff','wearable':'#5fd38d','tv / media':'#ffcc4d','smart home':'#ff9a3d','camera':'#ff5d5d',
+  'vehicle':'#4dd0e1','beacon':'#a8998a','radio':'#5fd38d','printer':'#c0a080','hotspot':'#5aa9ff','network':'#8a7a6a','hidden':'#6b5e52','other':'#6b5e52','unknown':'#6b5e52'};
+const cat=c=>`<span class="cat" style="color:${CC[c]||'#a8998a'};border-color:${CC[c]||'#3a3027'}55">${E(c||'unknown')}</span>`;
+const sig=(v,lo,hi)=>{if(v==null)return '';const p=Math.max(0,Math.min(1,(v-lo)/(hi-lo)));return `<span class="sig"><i style="width:${p*100}%;background:${p>.6?'#5fd38d':p>.3?'#ffcc4d':'#ff9a3d'}"></i></span>${Math.round(v)}`;};
+let TAB='ov', S=null, BL=[], WL=[], SORT={ble:['rssi',-1],wifi:['signal',-1]};
+try{TAB=localStorage.getItem('iot_tab')||'ov';}catch(e){}
+function setTab(t){TAB=t;try{localStorage.setItem('iot_tab',t);}catch(e){}document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('act',b.dataset.t===t));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('act',x.id==='t-'+t));refresh();}
+$('tabs').onclick=e=>{const b=e.target.closest('[data-t]');if(b)setTab(b.dataset.t);};
+function pill(id,txt,cls,title){const p=$(id);p.className='pill '+(cls||'');p.querySelector('b').textContent=txt;p.title=title||'';}
+async function state(){S=await fetch('/api/state').then(r=>r.json());const s=S.sum;
+  pill('pBle',s.ble.ok?(s.ble_live+' devices'):'off',s.ble.ok?'ok':'bad',s.ble.err);pill('pWifi',s.wifi.ok?(s.wifi_live+' APs'):(S.cfg.wifi?'—':'off'),s.wifi.ok?(s.wifi.err?'warn':'ok'):'bad',s.wifi.err);
+  pill('pGps',s.gps?'fix':'no fix',s.gps?'ok':'warn');
+  $('sB').innerHTML=`${s.ble_live} <small>/ ${s.ble_total} seen</small>`;$('sW').innerHTML=`${s.wifi_live} <small>/ ${s.wifi_total} seen</small>`;$('sT').textContent=s.trackers;
+  $('sF').textContent=s.following;$('sFc').className='stat'+(s.following?' bad':'');$('fMin').textContent=S.cfg.follow_min;$('fM').textContent=S.cfg.follow_m;
+  const C=Object.entries(s.cats).sort((a,b)=>(b[1][0]+b[1][1])-(a[1][0]+a[1][1])),mx=Math.max(1,...C.map(c=>c[1][0]+c[1][1]));
+  $('cats').innerHTML=C.map(([k,[b,w]])=>`<div class="bar"><span>${cat(k)}</span><span class="t"><i style="width:${b/mx*100}%;background:#5aa9ff"></i><i style="width:${w/mx*100}%;background:#ff9a3d"></i></span><span class="n">${b} · ${w}</span></div>`).join('')||'<div class="mut small">Listening…</div>';
+  cfgUi();}
+async function refresh(){await state();
+  if(TAB==='ov'||TAB==='ble'){BL=await fetch('/api/ble').then(r=>r.json());}
+  if(TAB==='ov'||TAB==='wifi'){WL=await fetch('/api/wifi').then(r=>r.json());}
+  if(TAB==='ov')vendors();else if(TAB==='ble')ble();else if(TAB==='wifi')wifi();else if(TAB==='trk')trk();}
+function vendors(){const now=Date.now()/1000,V={};BL.filter(d=>now-d.last<120).forEach(d=>{const v=d.vendor||'(random address, no vendor)';V[v]=(V[v]||0)+1;});
+  WL.filter(d=>now-d.last<180).forEach(d=>{const v=d.vendor||(d.rand?'(randomized BSSID)':'unknown');V[v]=(V[v]||0)+1;});
+  const L=Object.entries(V).sort((a,b)=>b[1]-a[1]).slice(0,14),mx=Math.max(1,...L.map(x=>x[1]));
+  $('vend').innerHTML=L.map(([k,n])=>`<div class="bar" style="grid-template-columns:200px 1fr 40px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${E(k)}">${E(k)}</span><span class="t"><i style="width:${n/mx*100}%;background:var(--accent)"></i></span><span class="n">${n}</span></div>`).join('')||'<div class="mut small">Listening…</div>';}
+function sorter(k){const [f,d]=SORT[k];return (a,b)=>{const x=a[f],y=b[f];return (x==null)-(y==null)||(x<y?-1:x>y?1:0)*d;};}
+function opts(sel,list){const cur=sel.value,c=[...new Set(list)].sort();sel.innerHTML='<option value="">every type</option>'+c.map(x=>`<option${x===cur?' selected':''}>${E(x)}</option>`).join('');}
+function ble(){const q=$('bQ').value.toLowerCase(),c=$('bCat').value,now=Date.now()/1000;opts($('bCat'),BL.map(d=>d.cat));
+  const L=BL.filter(d=>(!$('bLive').checked||now-d.last<120)&&(!c||d.cat===c)&&(!q||[d.name,d.vendor,d.what,d.addr,d.cat].join(' ').toLowerCase().includes(q))).sort(sorter('ble'));
+  $('bN').textContent=L.length+' shown';
+  $('bT').innerHTML=L.slice(0,400).map(d=>`<tr class="${now-d.last>120?'old':''}"><td>${sig(d.rssi,-100,-40)}</td><td><b>${E(d.name||'')}</b></td><td>${cat(d.cat)} ${E(d.what||'')}</td><td>${E(d.vendor||'')}</td>
+    <td class="mono" title="${E(d.adv)}">${E(d.addr)}<div class="small mut">${E(d.atype)}</div></td><td>${ago(d.last)}</td><td class="mut">${d.n}</td></tr>`).join('');}
+function wifi(){const q=$('wQ').value.toLowerCase(),c=$('wCat').value,now=Date.now()/1000;opts($('wCat'),WL.map(d=>d.cat));
+  const L=WL.filter(d=>(!$('wLive').checked||now-d.last<180)&&(!c||d.cat===c)&&(!q||[d.ssid,d.vendor,d.bssid,d.cat,...Object.values(d.wps||{})].join(' ').toLowerCase().includes(q))).sort(sorter('wifi'));
+  $('wN').textContent=L.length+' shown';
+  $('wT').innerHTML=L.map(d=>{const w=d.wps||{},m=[w.manufacturer,w.model,w['model number']].filter(Boolean).join(' ');
+    return `<tr class="${now-d.last>180?'old':''}"><td>${sig(d.signal,-95,-35)}</td><td><b>${d.ssid===''?'<i class="mut">hidden</i>':E(d.ssid)}</b>${d.assoc?' <span class="cat" style="color:#5fd38d">connected</span>':''}</td><td>${cat(d.cat)}</td>
+    <td>${E(d.vendor||(d.rand?'randomized':''))}${m?`<div class="small" style="color:var(--accent-2)">WPS: ${E(m)}${w['device name']?' · '+E(w['device name']):''}</div>`:''}</td><td>${d.chan??''}<div class="small mut">${d.freq>5900?'6 GHz':d.freq>4900?'5 GHz':'2.4 GHz'}</div></td>
+    <td style="color:${d.sec==='open'?'var(--warn)':d.sec==='WEP'?'var(--bad)':''}">${E(d.sec)}</td><td class="mono">${E(d.bssid)}</td><td>${ago(d.last)}</td></tr>`;}).join('');}
+async function trk(){const L=await fetch('/api/trackers').then(r=>r.json()),now=Date.now()/1000;
+  $('trkL').innerHTML=L.length?L.map(d=>{const f=d.follow,bad=d.alerted&&!d.mine;
+    return `<div class="card trk ${bad?'worry':''}"><div><b style="font-size:16px">${E(d.what||d.tracker)}</b> ${bad?'<span class="cat" style="color:var(--bad);border-color:var(--bad)">FOLLOWING YOU</span>':''}${d.mine?' <span class="cat" style="color:var(--ok)">mine</span>':''}
+      <div class="small mut mono">${E(d.addr)} · ${E(d.vendor||'')}</div>
+      <div class="small">first ${ago(d.first)} ago · last ${ago(d.last)} ago · ${Math.round(d.rssi??0)} dBm${f?` · with you <b>${f.min} min</b> over <b>${f.m>=1000?(f.m/1609).toFixed(1)+' mi':f.m+' m'}</b>`:''} · ${d.sight.length} GPS fixes</div></div>
+      <div><button class="sm" data-mine="${E(d.addr)}" data-on="${d.mine?0:1}">${d.mine?'not mine':'mine'}</button></div></div>`;}).join(''):'<div class="card mut">No trackers heard yet.</div>';}
+$('trkL').onclick=async e=>{const b=e.target.closest('[data-mine]');if(!b)return;await api('/api/mine',{addr:b.dataset.mine,on:b.dataset.on==='1'});trk();};
+document.querySelectorAll('th[data-s]').forEach(th=>th.onclick=()=>{const k=th.closest('.tab').id==='t-ble'?'ble':'wifi',f=th.dataset.s;SORT[k]=[f,SORT[k][0]===f?-SORT[k][1]:(f==='rssi'||f==='signal'||f==='last'||f==='n'?-1:1)];k==='ble'?ble():wifi();});
+['bQ','bCat','bLive'].forEach(i=>$(i).oninput=ble);['wQ','wCat','wLive'].forEach(i=>$(i).oninput=wifi);
+function cfgUi(){const c=S.cfg;if($('set').style.display==='block')return;$('cBle').checked=c.ble;$('cWifi').checked=c.wifi;$('cEvery').value=c.wifi_every_s;$('cKeep').value=c.keep_h;
+  $('cFMin').value=c.follow_min;$('cFM').value=c.follow_m;$('cSnd').checked=c.sound;$('cVol').value=c.volume;}
+$('gear').onclick=()=>$('set').style.display='block';
+$('cSave').onclick=async()=>{await api('/api/cfg',{ble:$('cBle').checked,wifi:$('cWifi').checked,wifi_every_s:+$('cEvery').value,keep_h:+$('cKeep').value,
+  follow_min:+$('cFMin').value,follow_m:+$('cFM').value,sound:$('cSnd').checked,volume:+$('cVol').value});$('set').style.display='none';toast('saved');refresh();};
+$('cTest').onclick=()=>api('/api/test');
+$('cClr').onclick=async()=>{if(!confirm('Forget every device seen?'))return;await api('/api/clear');refresh();};
+function stream(){const es=new EventSource('/api/stream');
+  es.onmessage=e=>{const ev=JSON.parse(e.data);if(ev.t==='follow'){const d=ev.d,a=$('alarm');
+    a.innerHTML=`<b style="font-size:17px;color:var(--bad)">⚠ A tracker may be following you</b><div>${E(d.what||d.tracker)} · ${E(d.addr)}</div><div class="small">with you ${d.follow.min} min over ${d.follow.m} m</div><div class="row" style="margin-top:8px"><button class="sm" onclick="setTab('trk');$('alarm').style.display='none'">Show</button><button class="sm" onclick="$('alarm').style.display='none'">Dismiss</button></div>`;
+    a.style.display='block';try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.frequency.value=660;g.gain.value=.15;o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.6);}catch(e){}}};
+  es.onerror=()=>{es.close();setTimeout(stream,3000);};}
+setTab(TAB);stream();setInterval(refresh,4000);
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+#!/bin/bash
+# co-iot - Wireless Census: Bluetooth LE + Wi-Fi devices around you, trackers following you (:8096).
+systemctl is-active --quiet co-iot || sudo systemctl start co-iot
+exec co-webapp iot http://127.0.0.1:8096/
