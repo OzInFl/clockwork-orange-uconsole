@@ -18,4 +18,8 @@ put() {
 export -f log put
 steps=("$@"); [ ${#steps[@]} -eq 0 ] && steps=($(cd "$CO_DIR/steps" && ls *.sh | sed 's/\.sh$//'))
 for s in "${steps[@]}"; do log "step $s"; bash -e "$CO_DIR/steps/$s.sh"; done
-log "done: ${steps[*]}"
+# record what's installed (the Hub shows it; co-update compares it with the latest release).
+# "+dev" = not a release checkout (a deploy.ps1 copy or a branch).
+v=$(cat "$CO_DIR/VERSION"); git -C "$CO_DIR" describe --exact-match --tags HEAD >/dev/null 2>&1 || v="$v+dev"
+echo "$v" | sudo install -D -m 0644 /dev/stdin /opt/clockwork-orange/VERSION
+log "done: ${steps[*]} (Clockwork Orange $v)"

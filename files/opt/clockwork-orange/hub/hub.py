@@ -7,7 +7,7 @@
 Binds to localhost only: /api/launch runs programs, so it must never be reachable from the LAN.
 Stdlib only, so it works before/without any pip installs.
 """
-import json, os, glob, shlex, socket, subprocess, sys, time, threading
+import json, os, glob, shlex, socket, subprocess, sys, time, threading, urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +15,7 @@ ICONS = os.path.join(os.path.dirname(HERE), "icons")
 PORT = 8090
 RAILS = ("sdr", "gps", "lora", "usb")
 SERVICES = {"lg": "sdr-looking-glass", "mesh": "meshtasticd"}   # hub-controllable services (whitelist)
+SLUG = os.environ.get("CO_REPO_SLUG", "OzInFl/clockwork-orange-uconsole")   # where releases are published
 
 def load_apps():
     with open(os.path.join(HERE, "apps.json")) as f:
@@ -78,6 +79,26 @@ def gps_status():
     GPS.update(t=time.time(), v=v)
     return v
 
+# ------------------------------------------------------------------ versions
+# Installed versions come from VERSION files (install.sh writes /opt/clockwork-orange/VERSION, "+dev" when
+# not installed from a release tag). The latest published release is checked on GitHub every 6 h.
+REL = {"latest": None, "t": 0}
+def release_loop():
+    while True:
+        try:
+            req = urllib.request.Request("https://api.github.com/repos/%s/releases/latest" % SLUG,
+                                         headers={"Accept": "application/vnd.github+json", "User-Agent": "co-hub"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                REL.update(latest=json.load(r)["tag_name"].lstrip("v"), t=time.time())
+            time.sleep(6 * 3600)
+        except Exception:
+            time.sleep(600)                                  # offline in the field: try again later
+
+def versions():
+    return {"suite": _read(os.path.join(os.path.dirname(HERE), "VERSION")),
+            "lg": _read(os.path.expanduser("~/sdr-looking-glass/VERSION")),
+            "latest": REL["latest"], "checked": REL["t"] or None}
+
 def status():
     rails = {}
     for n in RAILS:
@@ -91,7 +112,8 @@ def status():
             "temp": round(int(temp) / 1000, 1) if temp and temp.isdigit() else None,
             "load": _read("/proc/loadavg", "").split(" ")[0],
             "rails": rails, "services": {k: _sh("systemctl", "is-active", u) for k, u in SERVICES.items()},
-            "gps": gps_status()}
+            "gps": gps_status(), "versions": versions(),
+            "apps_mtime": os.path.getmtime(os.path.join(HERE, "apps.json"))}
 
 # ------------------------------------------------------------------ icons
 ICON_DIRS = ["/usr/share/icons/hicolor/scalable/apps", "/usr/share/icons/hicolor/256x256/apps",
@@ -144,6 +166,7 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {"ok": False, "msg": "unknown action"})
 
 def serve():
+    threading.Thread(target=release_loop, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
 
 if __name__ == "__main__":

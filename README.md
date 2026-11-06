@@ -14,9 +14,9 @@ On the uConsole (terminal or SSH), as your normal user:
 curl -fsSL https://raw.githubusercontent.com/OzInFl/clockwork-orange-uconsole/main/get.sh | bash
 ```
 
-It clones this repo to `~/clockwork-orange` and runs every step. The first run takes **about 1.5–2 hours**
+It installs the latest [release](https://github.com/OzInFl/clockwork-orange-uconsole/releases) into `~/clockwork-orange` and runs every step. The first run takes **about 1.5–2 hours**
 (OP25 and several decoders are compiled on the CM4). Use a charger and keep it on Wi-Fi. Re-running is
-safe: finished steps are skipped and only changed files are reinstalled, so the same command updates it.
+safe: finished steps are skipped and only changed files are reinstalled. To update later, use **Update Suite**.
 
 Options go in front of `bash`, and step names after `bash -s --`:
 
@@ -78,6 +78,34 @@ your region's rules. Monitoring laws differ by country and state; what you decod
 
 `files/` mirrors absolute paths on the device (`files/etc/...` → `/etc/...`). Use `put /path` in a step to
 install one. systemd units are written for user `pi`; `put` fills in the installing user's name, home and uid.
+
+## Updates and releases
+
+**Update Suite** (Hub tile, or `co-update` in a terminal) installs the latest *published* release from
+[Releases](https://github.com/OzInFl/clockwork-orange-uconsole/releases), shows what's new, and re-runs the
+installer, so new apps arrive with it. The Hub shows the installed version and an **Update to vX.Y.Z** button
+when a newer release is out.
+
+- `co-update v1.0.0`: install a specific release (also how you roll back)
+- `CO_CHANNEL=beta co-update`: include pre-releases
+- `co-update main`: the development branch, for testing
+
+Versions are [semver](https://semver.org): `VERSION` is the suite's, `LOOKINGGLASS_VERSION` pins the Looking
+Glass release it installs, and [CHANGELOG.md](CHANGELOG.md) lists every release. The Hub shows `+dev` after
+the version when the install didn't come from a release tag.
+
+**Publishing a release** (maintainers): work on `main`, then from a PC with `gh` logged in:
+
+```powershell
+.	oolselease.ps1 patch                        # or minor / major / 1.2.0;  -Notes "..." adds a summary
+.	oolselease.ps1 1.2.0-beta.1 -Pre            # pre-release: only CO_CHANNEL=beta picks it up
+.	oolselease.ps1 minor -DryRun                # preview the version and changelog
+```
+
+It bumps `VERSION`, writes the changelog section from the commits since the last tag, tags `vX.Y.Z`, pushes,
+and publishes the GitHub Release. Users get it on their next Update Suite. To ship a new Looking Glass, release
+it first (same script, `-Repo <its checkout>`), then put its version in `LOOKINGGLASS_VERSION` and release
+the suite.
 
 ## Calibration
 

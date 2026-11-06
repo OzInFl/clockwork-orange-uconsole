@@ -1,0 +1,46 @@
+#!/bin/bash
+# co-update - Update Suite. Installs the latest *published* Clockwork Orange release from GitHub (drafts and
+# pre-releases are skipped), then re-runs the installer: new apps arrive as new steps + apps.json entries,
+# and Looking Glass moves to the version that release pins (LOOKINGGLASS_VERSION).
+#   co-update              latest release
+#   co-update v1.2.0       a specific release (older ones too: that's the rollback)
+#   co-update main         a branch, for testing unreleased work
+#   CO_CHANNEL=beta co-update    newest release including pre-releases
+set -uo pipefail
+SLUG=${CO_REPO_SLUG:-OzInFl/clockwork-orange-uconsole}
+DIR=${CO_HOME:-$HOME/clockwork-orange}
+cur=$(cat /opt/clockwork-orange/VERSION 2>/dev/null || echo none)
+die() { echo; echo "!! $*"; exit 1; }
+
+want=${1:-}
+if [ -z "$want" ]; then
+  if [ "${CO_CHANNEL:-stable}" = beta ]; then api="https://api.github.com/repos/$SLUG/releases?per_page=1"
+  else api="https://api.github.com/repos/$SLUG/releases/latest"; fi
+  want=$(curl -fsSL -H 'Accept: application/vnd.github+json' "$api" 2>/dev/null |
+         python3 -c 'import json,sys; d=json.load(sys.stdin); d=d[0] if isinstance(d,list) else d; print(d["tag_name"])' 2>/dev/null) ||
+    die "Can't reach GitHub (no internet?) or no release is published yet."
+fi
+echo "Clockwork Orange   installed: $cur   available: ${want#v}"
+
+if [ ! -d "$DIR/.git" ]; then                          # first update (or a copy pushed by deploy.ps1): start a clean checkout
+  [ -e "$DIR" ] && mv "$DIR" "$DIR.old-$(date +%s)"
+  git clone -q "https://github.com/$SLUG" "$DIR" || die "git clone failed"
+fi
+git -C "$DIR" fetch -q --tags --force origin || die "git fetch failed"
+if git -C "$DIR" rev-parse -q --verify "refs/tags/$want" >/dev/null; then ref=$want
+elif git -C "$DIR" rev-parse -q --verify "refs/remotes/origin/$want" >/dev/null; then ref=origin/$want
+else die "no release or branch called $want"; fi
+
+if [ "${cur%%+*}" = "${want#v}" ] && [ "$cur" = "${cur%%+*}" ] && [ -z "${1:-}" ]; then
+  read -r -t 30 -p "Already on the latest release. Re-run the installer anyway? [y/N] " a || a=n
+  [[ $a == [yY]* ]] || exit 0
+fi
+# what's new: the CHANGELOG sections between the installed version and the target
+if git -C "$DIR" show "$ref:CHANGELOG.md" >/dev/null 2>&1; then
+  echo; echo "What's new:"
+  git -C "$DIR" show "$ref:CHANGELOG.md" | awk -v cur="${cur%%+*}" '/^## /{v=$2; gsub(/[\[\]v]/,"",v); if (v==cur) exit; n++} n && n<=10' | sed 's/^/  /'
+fi
+[ -n "$(git -C "$DIR" status --porcelain)" ] && { git -C "$DIR" stash -q -u -m "co-update $(date +%F)" && echo "  (local edits saved: git -C $DIR stash list)"; }
+git -C "$DIR" -c advice.detachedHead=false checkout -q --force "$ref" || die "checkout $ref failed"
+echo; echo "Installing ${want}. The first update after a long gap can take a while (apt upgrade, rebuilds)."
+exec "$DIR/install.sh"

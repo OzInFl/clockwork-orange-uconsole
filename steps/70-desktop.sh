@@ -1,6 +1,6 @@
 # Desktop integration: the Clockwork Orange Hub app, a "Clockwork Orange" start-menu folder generated
 # from hub/apps.json, and desktop icons. apps.json is the single list of suite apps.
-for f in co-webapp co-launch co-hub co-lookingglass co-ccviewer co-meshtastic-web; do put /usr/local/bin/$f 0755 || true; done
+for f in co-webapp co-launch co-hub co-update co-lookingglass co-ccviewer co-meshtastic-web; do put /usr/local/bin/$f 0755 || true; done
 for f in hub.py index.html apps.json; do put /opt/clockwork-orange/hub/$f || true; done
 for f in "$CO_DIR"/files/opt/clockwork-orange/icons/*.svg; do
   n=$(basename "$f"); put /opt/clockwork-orange/icons/$n || true

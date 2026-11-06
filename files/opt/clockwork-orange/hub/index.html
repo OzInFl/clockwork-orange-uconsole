@@ -26,6 +26,8 @@
   .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
     background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); font-size: 13px; white-space: nowrap; }
   .pill strong { color: var(--text); font-weight: 700; }
+  .pill.upd { border-color: var(--accent); color: var(--accent-2); cursor: pointer; font: inherit; font-size: 13px; }
+  .pill.upd:hover, .pill.upd:focus-visible { background: var(--accent); color: #1b0f05; outline: none; }
   #clock { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; }
 
   main { display: grid; grid-template-columns: 290px 1fr; min-height: 0; }
@@ -85,6 +87,8 @@
 <header>
   <img src="/icon/co-hub" alt="">
   <div class="brand">CLOCKWORK <b>ORANGE</b></div>
+  <span class="pill" id="p-ver" title="Clockwork Orange version">v<strong>-</strong></span>
+  <button class="pill upd" id="p-upd" hidden title="A newer release is published: run Update Suite"></button>
   <div class="spacer"></div>
   <span class="pill" id="p-ip">IP <strong>-</strong></span>
   <span class="pill" id="p-temp">CPU <strong>-</strong></span>
@@ -106,6 +110,10 @@
     <div class="card">
       <h3>GPS</h3>
       <div class="kv" id="gps"></div>
+    </div>
+    <div class="card">
+      <h3>Versions</h3>
+      <div class="kv" id="vers"></div>
     </div>
     <div class="hint">Arrows to move &middot; Enter to launch &middot; 1-9 shortcuts</div>
   </aside>
@@ -153,8 +161,19 @@ async function loadApps() {
   root.querySelector(".tile")?.focus();
 }
 
+// "1.10.0" > "1.9.2"; a "+dev" build counts as its base version
+const vnum = v => String(v || "0").replace(/^v/, "").split(/[+-]/)[0].split(".").map(n => parseInt(n) || 0);
+const newer = (a, b) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+let appsMtime = null;
 function renderStatus(s) {
+  if (appsMtime != null && s.apps_mtime !== appsMtime) loadApps();      // new apps arrived with an update
+  appsMtime = s.apps_mtime;
   lastStatus = s;
+  const v = s.versions || {}, upd = v.latest && v.suite && newer(v.latest, v.suite);
+  $("#p-ver strong").textContent = v.suite || "?";
+  $("#p-upd").hidden = !upd; $("#p-upd").textContent = upd ? `Update to v${v.latest}` : "";
+  $("#vers").innerHTML = `<span>Suite</span><span>${v.suite || "-"}</span><span>Looking Glass</span><span>${v.lg || "-"}</span>
+    <span>Latest release</span><span>${v.latest || (v.checked ? "-" : "not checked")}</span>`;
   $("#clock").textContent = s.time;
   $("#p-ip strong").textContent = s.ip || "offline";
   $("#p-temp strong").textContent = s.temp != null ? s.temp + "°C" : "-";
@@ -203,6 +222,7 @@ document.addEventListener("keydown", e => {
   best?.focus(); best?.scrollIntoView({block: "nearest"});
 });
 
+$("#p-upd").onclick = () => post("/api/launch/update");
 loadApps(); refresh(); setInterval(refresh, 3000);
 </script>
 </body>

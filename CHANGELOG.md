@@ -1,0 +1,13 @@
+# Changelog
+
+Clockwork Orange versions follow [semver](https://semver.org). Each release is a git tag `vX.Y.Z` with a GitHub
+Release; Update Suite (`co-update`) and `get.sh` install the latest published one. `LOOKINGGLASS_VERSION` pins
+the [SDR Looking Glass](https://github.com/OzInFl/sdr-looking-glass-uconsole) release each suite version installs.
+
+## [1.0.0] - 2026-11-06
+First public release. Looking Glass 1.0.0.
+- One-line installer (`get.sh`) and Update Suite (`co-update`) that install published releases
+- Hub with versions and an update-available button; new apps appear without reopening it
+- SDR Looking Glass (P25), Pager Recorder, System Spy (ACARS, VDL2, AIS, meters, dsd-fme, Meteor-M weather sats),
+  GPS Status, APRS Monitor, radiosondes, dsd-fme Digital Voice, Meshtastic + MeshCore, remote console
+- Installs for whichever user runs it (systemd units are rendered per user); timezone and LoRa region are options

@@ -1,10 +1,15 @@
-# SDR Looking Glass (uConsole edition) as a service on :8080. Cloned from GitHub (CO_LG_REPO) and updated with
-# git pull on re-runs; a copy pushed by sync-lookingglass.ps1 (no .git) is left as it is.
-LG="$HOME/sdr-looking-glass"
-if [ -d "$LG/.git" ]; then git -C "$LG" pull -q --ff-only || echo "  (Looking Glass: git pull failed, keeping the current version)"
-elif [ ! -f "$LG/dashboard/app.py" ]; then
+# SDR Looking Glass (uConsole edition) as a service on :8080, cloned from GitHub (CO_LG_REPO) and checked out at
+# the release this suite version pins (LOOKINGGLASS_VERSION; CO_LG_REF=origin/main etc. to override).
+# A copy pushed by sync-lookingglass.ps1 (no .git) is left as it is.
+LG="$HOME/sdr-looking-glass"; REF=${CO_LG_REF:-v$(cat "$CO_DIR/LOOKINGGLASS_VERSION")}
+if [ ! -d "$LG/.git" ] && [ ! -f "$LG/dashboard/app.py" ]; then
   [ -e "$LG" ] && mv "$LG" "$LG.old-$(date +%s)"
   git clone -q "${CO_LG_REPO:-https://github.com/OzInFl/sdr-looking-glass-uconsole}" "$LG"
+fi
+if [ -d "$LG/.git" ]; then
+  if git -C "$LG" fetch -q --tags --force origin && git -C "$LG" -c advice.detachedHead=false checkout -q --force "$REF"; then
+    echo "  Looking Glass $(cat "$LG/VERSION" 2>/dev/null) ($REF)"
+  else echo "  (Looking Glass: couldn't get $REF, keeping $(cat "$LG/VERSION" 2>/dev/null))"; fi
 fi
 [ -f "$HOME/op25/op25/op25/gr-op25_repeater/apps/multi_rx.py" ] || echo "  (OP25 not built yet - run step 40-op25; the dashboard starts but can't decode)"
 # per-unit tuning lives here, not in the repo (SDR_PPM = this dongle's measured ppm)

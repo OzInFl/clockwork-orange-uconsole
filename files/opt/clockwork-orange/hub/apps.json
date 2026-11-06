@@ -35,7 +35,7 @@
      "icon": "co-iq", "exec": "inspectrum"},
     {"id": "btop", "name": "System Monitor", "desc": "CPU, memory, processes", "group": "System",
      "icon": "co-system", "exec": "btop", "terminal": true},
-    {"id": "update", "name": "Update Suite", "desc": "Re-run Clockwork Orange setup", "group": "System",
-     "icon": "co-update", "exec": "$HOME/clockwork-orange/install.sh", "terminal": true}
+    {"id": "update", "name": "Update Suite", "desc": "Install the latest Clockwork Orange release", "group": "System",
+     "icon": "co-update", "exec": "co-update", "terminal": true}
   ]
 }
