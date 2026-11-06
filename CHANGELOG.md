@@ -4,6 +4,11 @@ Clockwork Orange versions follow [semver](https://semver.org). Each release is a
 Release; Update Suite (`co-update`) and `get.sh` install the latest published one. `LOOKINGGLASS_VERSION` pins
 the [SDR Looking Glass](https://github.com/OzInFl/sdr-looking-glass-uconsole) release each suite version installs.
 
+## [1.1.0] - 2026-11-06
+New apps: ALPR Watch (Flock / Raven detector + known ALPR camera alerts) and Wireless Census (Bluetooth + Wi-Fi device census, tracker-following alarm), in the Hub's new Surveillance group.
+
+- Add ALPR Watch and Wireless Census apps
+
 ## [1.0.3] - 2026-11-06
 The remote console's live screen now works in the browser (log in with your uConsole account).
 
