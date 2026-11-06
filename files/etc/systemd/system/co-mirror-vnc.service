@@ -1,0 +1,14 @@
+[Unit]
+Description=Clockwork Orange remote console VNC (wayvnc on 127.0.0.1:5901, noVNC-compatible login)
+After=network.target
+
+[Service]
+User=pi
+# runs inside the desktop session; restarts until labwc is up after boot
+Environment=XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0
+ExecStart=/usr/bin/wayvnc --gpu --config /etc/clockwork-orange/wayvnc-mirror.conf --socket /run/user/1000/co-mirror-vnc.sock 127.0.0.1 5901
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

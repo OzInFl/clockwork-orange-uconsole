@@ -1,11 +1,11 @@
 [Unit]
-Description=Clockwork Orange screen mirror WebSocket bridge (127.0.0.1:6081 -> wayvnc :5900)
-After=network.target wayvnc.service
-Wants=wayvnc.service
+Description=Clockwork Orange screen mirror WebSocket bridge (127.0.0.1:6081 -> co-mirror-vnc 127.0.0.1:5901)
+After=network.target co-mirror-vnc.service
+Wants=co-mirror-vnc.service
 
 [Service]
 User=pi
-ExecStart=/usr/bin/websockify 127.0.0.1:6081 localhost:5900
+ExecStart=/usr/bin/websockify 127.0.0.1:6081 127.0.0.1:5901
 Restart=on-failure
 RestartSec=5
 
