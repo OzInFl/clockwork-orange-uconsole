@@ -4,6 +4,11 @@ Clockwork Orange versions follow [semver](https://semver.org). Each release is a
 Release; Update Suite (`co-update`) and `get.sh` install the latest published one. `LOOKINGGLASS_VERSION` pins
 the [SDR Looking Glass](https://github.com/OzInFl/sdr-looking-glass-uconsole) release each suite version installs.
 
+## [1.0.3] - 2026-11-06
+The remote console's live screen now works in the browser (log in with your uConsole account).
+
+- Remote console: the live screen now connects in the browser
+
 ## [1.0.2] - 2026-11-06
 - Looking Glass 1.0.1: no false 'OP25 software error' when a browser audio tab closes
 
