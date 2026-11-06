@@ -1,0 +1,4 @@
+#!/bin/bash
+# co-gps - GPS Status: sky plot, signal bars, fix/position, antenna state (graphical gpsd view on :8093).
+systemctl is-active --quiet co-gps || sudo systemctl start co-gps
+exec co-webapp gps http://127.0.0.1:8093/

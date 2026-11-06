@@ -1,0 +1,16 @@
+[Unit]
+Description=SDR Looking Glass (P25/DMR analyzer) on the AIO V2 RTL-SDR
+After=network-online.target aiov2-rail@sdr.service
+Wants=aiov2-rail@sdr.service
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/sdr-looking-glass/dashboard
+EnvironmentFile=-/etc/default/sdr-looking-glass
+Environment=SDR_KIND=rtl OP25_APPS=/home/pi/op25/op25/op25/gr-op25_repeater/apps OP25_PYTHON=/usr/bin/python3
+ExecStart=/usr/bin/python3 /home/pi/sdr-looking-glass/dashboard/app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

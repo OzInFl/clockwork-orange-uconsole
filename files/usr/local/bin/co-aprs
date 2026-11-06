@@ -1,0 +1,5 @@
+#!/bin/bash
+# co-aprs - APRS Monitor (receive-only map, stations, weather, messages, packet log). The co-aprs service keeps
+# listening with the window closed; Stop in the app (or `systemctl stop co-aprs`) gives the radio back.
+systemctl is-active --quiet co-aprs || sudo systemctl start co-aprs
+exec co-webapp aprs http://127.0.0.1:8094/

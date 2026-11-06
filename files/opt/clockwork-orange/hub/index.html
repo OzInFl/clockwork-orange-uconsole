@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clockwork Orange</title>
+<style>
+  :root {
+    --bg: #14110f; --panel: #1d1916; --panel-2: #262019; --line: #3a3027;
+    --text: #f3ece4; --muted: #a8998a; --accent: #ff7a1a; --accent-2: #ffb066;
+    --ok: #5fd38d; --warn: #ffcc4d; --off: #6b5e52;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.35 "Nunito Sans", "Noto Sans", system-ui, sans-serif; overflow: hidden; }
+  body { display: grid; grid-template-rows: 56px 1fr; }
+
+  /* top bar */
+  header { display: flex; align-items: center; gap: 14px; padding: 0 18px;
+    background: linear-gradient(90deg, #2a1a0e, var(--panel) 40%); border-bottom: 1px solid var(--line); }
+  header img { width: 34px; height: 34px; }
+  .brand { font-weight: 800; letter-spacing: .14em; font-size: 17px; }
+  .brand b { color: var(--accent); font-weight: 800; }
+  .spacer { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .pill strong { color: var(--text); font-weight: 700; }
+  #clock { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; }
+
+  main { display: grid; grid-template-columns: 290px 1fr; min-height: 0; }
+
+  /* side panel */
+  aside { border-right: 1px solid var(--line); padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .card h3 { margin: 0 0 10px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--off); display: inline-block; margin-right: 8px; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .switch { width: 46px; height: 26px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2);
+    position: relative; cursor: pointer; padding: 0; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--muted); transition: transform .15s, background .15s; }
+  .switch[aria-checked="true"] { background: #4a2a12; border-color: var(--accent); }
+  .switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--accent); }
+  .btn { border: 1px solid var(--accent); background: transparent; color: var(--accent-2); border-radius: 10px;
+    padding: 6px 12px; font: inherit; font-weight: 700; cursor: pointer; }
+  .btn:hover, .btn:focus-visible { background: var(--accent); color: #1b0f05; outline: none; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+  .kv span:nth-child(odd) { color: var(--muted); }
+  .kv span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* app grid */
+  section#apps { overflow-y: auto; padding: 14px 20px 24px; display: flex; flex-wrap: wrap; gap: 4px 26px; align-content: flex-start; }
+  .group h2 { margin: 6px 0 10px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-2); }
+  .grid { display: grid; grid-template-columns: repeat(var(--cols), 172px); gap: 12px; margin-bottom: 14px; }
+  .tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px; min-height: 132px;
+    color: var(--text); font: inherit; cursor: pointer; transition: transform .08s, border-color .12s, background .12s; }
+  .tile:hover, .tile:focus-visible { border-color: var(--accent); background: var(--panel-2); outline: none; transform: translateY(-1px); }
+  .tile:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+  .tile.hero { grid-column: span 2; flex-direction: row; align-items: center; gap: 16px;
+    background: radial-gradient(120% 140% at 0% 0%, #3a210d, var(--panel) 60%); }
+  .tile img { width: 48px; height: 48px; }
+  .tile.hero img { width: 76px; height: 76px; }
+  .tile .name { font-weight: 800; font-size: 16px; }
+  .tile.hero .name { font-size: 22px; }
+  .tile .desc { color: var(--muted); font-size: 13px; }
+  .badges { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; }
+  .badge { font-size: 10px; font-weight: 800; letter-spacing: .08em; padding: 2px 6px; border-radius: 6px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+  .badge.sdr { color: var(--accent-2); border-color: #6b3a14; }
+  .badge.key { color: var(--text); }
+
+  #toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(80px); transition: transform .2s;
+    background: var(--accent); color: #1b0f05; font-weight: 800; padding: 10px 18px; border-radius: 12px; }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  .hint { color: var(--muted); font-size: 12px; text-align: center; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } aside { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/icon/co-hub" alt="">
+  <div class="brand">CLOCKWORK <b>ORANGE</b></div>
+  <div class="spacer"></div>
+  <span class="pill" id="p-ip">IP <strong>-</strong></span>
+  <span class="pill" id="p-temp">CPU <strong>-</strong></span>
+  <span class="pill" id="p-load">Load <strong>-</strong></span>
+  <span class="pill" id="p-batt">Battery <strong>-</strong></span>
+  <div id="clock">--:--</div>
+</header>
+<main>
+  <aside>
+    <div class="card">
+      <h3>Services</h3>
+      <div id="svcs"></div>
+      <div class="hint" style="text-align:left;margin-top:6px">SDR / LoRa apps pause the service holding that radio and resume it on exit.</div>
+    </div>
+    <div class="card">
+      <h3>AIO V2 power</h3>
+      <div id="rails"></div>
+    </div>
+    <div class="card">
+      <h3>GPS</h3>
+      <div class="kv" id="gps"></div>
+    </div>
+    <div class="hint">Arrows to move &middot; Enter to launch &middot; 1-9 shortcuts</div>
+  </aside>
+  <section id="apps"></section>
+</main>
+<div id="toast"></div>
+<script>
+const $ = s => document.querySelector(s);
+const RAIL_NAMES = {sdr: "RTL-SDR", gps: "GPS", lora: "LoRa", usb: "Internal USB"};
+const SVC_NAMES = {lg: ["Looking Glass", "owns SDR"], mesh: ["Meshtastic", "owns LoRa"]};
+let lastStatus = null;
+
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2200);
+}
+async function post(url) {
+  try { const r = await fetch(url, {method: "POST"}); const j = await r.json(); toast(j.msg || (j.ok ? "done" : "failed")); }
+  catch (e) { toast("hub not responding"); }
+  setTimeout(refresh, 600);
+}
+
+async function loadApps() {
+  const cfg = await (await fetch("/apps.json")).json();
+  const root = $("#apps"); root.innerHTML = ""; let n = 0;
+  for (const g of cfg.groups) {
+    const apps = cfg.apps.filter(a => a.group === g);
+    if (!apps.length) continue;
+    const sec = document.createElement("div"); sec.className = "group";
+    sec.innerHTML = `<h2>${g}</h2>`;
+    const grid = document.createElement("div"); grid.className = "grid";
+    grid.style.setProperty("--cols", apps.length + (apps.some(a => a.id === "lookingglass") ? 1 : 0));  // hero spans 2
+    for (const a of apps) {
+      n++;
+      const b = document.createElement("button");
+      b.className = "tile" + (a.id === "lookingglass" ? " hero" : ""); b.dataset.id = a.id;
+      if (n <= 9) b.dataset.key = n;
+      b.innerHTML = `<div class="badges">${a.sdr ? '<span class="badge sdr">SDR</span>' : ""}${a.lora ? '<span class="badge sdr">LoRa</span>' : ""}${n <= 9 ? `<span class="badge key">${n}</span>` : ""}</div>
+        <img src="/icon/${a.icon}" alt=""><div><div class="name">${a.name}</div><div class="desc">${a.desc}</div></div>`;
+      b.onclick = () => post("/api/launch/" + a.id);
+      grid.appendChild(b);
+    }
+    sec.appendChild(grid); root.appendChild(sec);
+  }
+  root.querySelector(".tile")?.focus();
+}
+
+function renderStatus(s) {
+  lastStatus = s;
+  $("#clock").textContent = s.time;
+  $("#p-ip strong").textContent = s.ip || "offline";
+  $("#p-temp strong").textContent = s.temp != null ? s.temp + "°C" : "-";
+  $("#p-load strong").textContent = s.load || "-";
+  $("#p-batt strong").textContent = s.battery != null ? s.battery + "%" + (s.charging ? " ⚡" : "") : "-";
+  $("#svcs").innerHTML = Object.entries(s.services || {}).map(([k, st]) => {
+    const on = st === "active", [name, owns] = SVC_NAMES[k] || [k, ""];
+    return `<div class="row"><span><span class="dot ${on ? "on" : ""}"></span>${name}<br><small style="color:var(--muted)">${on ? "running · " + owns : "stopped"}</small></span>
+      <button class="btn" data-svc="${k}" data-act="${on ? "stop" : "start"}">${on ? "Stop" : "Start"}</button></div>`;
+  }).join("");
+  document.querySelectorAll("#svcs .btn").forEach(b => b.onclick = () => post(`/api/svc/${b.dataset.svc}/${b.dataset.act}`));
+  $("#rails").innerHTML = Object.entries(s.rails).map(([k, on]) =>
+    `<div class="row"><span><span class="dot ${on ? "on" : ""}"></span>${RAIL_NAMES[k] || k}</span>
+     <button class="switch" role="switch" aria-label="${RAIL_NAMES[k]} power" aria-checked="${on}" data-rail="${k}"></button></div>`).join("");
+  document.querySelectorAll("#rails .switch").forEach(sw =>
+    sw.onclick = () => post(`/api/rail/${sw.dataset.rail}/${sw.getAttribute("aria-checked") === "true" ? "off" : "on"}`));
+  const g = s.gps || {};
+  const fix = !g.gpsd ? "gpsd down" : g.mode >= 3 ? "3D fix" : g.mode === 2 ? "2D fix" : "No fix";
+  const f = (v, d) => v == null ? "-" : Number(v).toFixed(d);
+  $("#gps").innerHTML = `<span>Status</span><span><span class="dot ${g.mode >= 2 ? "on" : g.gpsd ? "warn" : ""}"></span>${fix}</span>
+    <span>Satellites</span><span>${g.sats != null ? `${g.used ?? 0} / ${g.sats}` : "-"}</span>
+    <span>Lat</span><span>${f(g.lat, 5)}</span><span>Lon</span><span>${f(g.lon, 5)}</span>
+    <span>Alt</span><span>${g.alt != null ? f(g.alt, 0) + " m" : "-"}</span>`;
+}
+async function refresh() {
+  try { renderStatus(await (await fetch("/api/status")).json()); } catch (e) {}
+}
+
+// keyboard / trackball navigation across the tile grid
+document.addEventListener("keydown", e => {
+  const tiles = [...document.querySelectorAll(".tile")];
+  if (/^[1-9]$/.test(e.key)) { tiles.find(t => t.dataset.key === e.key)?.click(); return; }
+  const i = tiles.indexOf(document.activeElement);
+  if (i < 0 || !e.key.startsWith("Arrow")) return;
+  e.preventDefault();
+  const r = tiles[i].getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const dir = {ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1]}[e.key];
+  let best = null, bd = 1e9;
+  for (const t of tiles) {
+    if (t === tiles[i]) continue;
+    const q = t.getBoundingClientRect(), dx = q.left + q.width / 2 - cx, dy = q.top + q.height / 2 - cy;
+    if (dx * dir[0] + dy * dir[1] <= 5) continue;                 // must lie in the pressed direction
+    const d = Math.hypot(dx, dy) + Math.abs(dir[0] ? dy : dx) * 2;  // prefer straight-line neighbours
+    if (d < bd) { bd = d; best = t; }
+  }
+  best?.focus(); best?.scrollIntoView({block: "nearest"});
+});
+
+loadApps(); refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>

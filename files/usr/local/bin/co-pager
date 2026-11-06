@@ -1,0 +1,4 @@
+#!/bin/bash
+# co-pager - Pager Recorder (POCSAG/FLEX recorder + RIC alerts). The co-pager service keeps recording with the window closed.
+systemctl is-active --quiet co-pager || sudo systemctl start co-pager
+exec co-webapp pager http://127.0.0.1:8091/

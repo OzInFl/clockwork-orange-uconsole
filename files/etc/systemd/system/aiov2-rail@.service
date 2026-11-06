@@ -1,0 +1,13 @@
+[Unit]
+Description=Power on HackerGadgets AIO V2 %i rail
+After=basic.target systemd-modules-load.service
+Before=gpsd.service sdr-looking-glass.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/co-rail %i on
+ExecStop=/usr/local/bin/co-rail %i off
+
+[Install]
+WantedBy=multi-user.target

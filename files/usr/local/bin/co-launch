@@ -1,0 +1,3 @@
+#!/bin/bash
+# co-launch <app-id> - start a Clockwork Orange app (same path for hub tiles, menu and desktop icons)
+exec python3 /opt/clockwork-orange/hub/hub.py launch "$@"

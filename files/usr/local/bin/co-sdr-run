@@ -1,0 +1,10 @@
+#!/bin/bash
+# co-sdr-run <cmd...> - run a tool that needs the RTL-SDR. Pauses SDR Looking Glass (it holds the
+# dongle while OP25 runs) and resumes it when the tool exits - also when the terminal window is closed
+# (SIGHUP) or the tool is killed: the resume runs from the EXIT trap, not after a normal return only.
+was=$(systemctl is-active sdr-looking-glass 2>/dev/null)
+resume() { [ "$was" = active ] && { echo "[co] resuming SDR Looking Glass"; sudo systemctl start sdr-looking-glass; }; }
+trap resume EXIT
+trap 'exit 129' HUP TERM INT
+[ "$was" = active ] && { echo "[co] pausing SDR Looking Glass to free the SDR"; sudo systemctl stop sdr-looking-glass; sleep 1; }
+"$@"

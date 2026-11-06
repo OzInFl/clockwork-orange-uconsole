@@ -1,0 +1,15 @@
+[Unit]
+Description=Clockwork Orange GPS Status (graphical gpsd view, :8093)
+After=gpsd.socket
+Wants=gpsd.socket
+
+[Service]
+User=pi
+# XDG_RUNTIME_DIR lets pw-play reach the desktop session's PipeWire (alert sounds)
+Environment=XDG_RUNTIME_DIR=/run/user/1000 PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/clockwork-orange/gps/gps.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Clockwork Orange: put the AIO V2 GPS (CASIC URANUS5, a u-blox clone) in plain NMEA at 9600 before gpsd opens it.
+# gpsd runs with -b so it never reconfigures the module; this sets GGA,GSA,GSV,RMC,VTG,ZDA,ANT once a second.
+# Run as gpsd.service ExecStartPre (root). Harmless if the module is off or already configured.
+P=/dev/ttyS0
+[ -e $P ] || exit 0
+cs() { python3 -c "import sys,functools;s=sys.argv[1];print('\$%s*%02X'%(s,functools.reduce(lambda a,c:a^ord(c),s,0)))" "$1"; }
+stty -F $P 9600 raw -echo 2>/dev/null || exit 0
+printf '%s\r\n' "$(cs PCAS03,1,0,1,1,1,1,1,1,0,0,,,0,0,,,,0)" > $P
+[ "$1" = "--save" ] && { sleep 0.3; printf '%s\r\n' "$(cs PCAS00)" > $P; }
+exit 0

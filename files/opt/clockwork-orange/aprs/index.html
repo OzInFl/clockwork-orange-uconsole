@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS Monitor</title>
+<link rel="stylesheet" href="/leaflet/leaflet.css">
+<script src="/leaflet/leaflet.js"></script>
+<style>
+  :root { --bg:#14110f; --panel:#1d1916; --panel-2:#262019; --line:#3a3027; --text:#f3ece4; --muted:#a8998a;
+    --accent:#ff7a1a; --accent-2:#ffb066; --ok:#5fd38d; --warn:#ffcc4d; --bad:#ff5d5d; --off:#6b5e52; --info:#6fb7ff; --r:12px; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:15px/1.35 "Nunito Sans","Noto Sans",system-ui,sans-serif; }
+  body { display:grid; grid-template-rows:auto auto 1fr; overflow:hidden; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; background:linear-gradient(90deg,#2a1a0e,var(--panel) 40%); border-bottom:1px solid var(--line); }
+  .brand { font-weight:800; letter-spacing:.12em; font-size:16px; } .brand b { color:var(--accent); }
+  .sp { flex:1; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-size:13px; white-space:nowrap; }
+  .pill b { color:var(--text); }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--off); display:inline-block; } .dot.on { background:var(--ok); box-shadow:0 0 8px var(--ok); } .dot.err { background:var(--bad); }
+  button, input, select { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:5px 10px; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  button.pri { background:var(--accent); color:#1a0f05; border-color:var(--accent); font-weight:800; }
+  button.stop { background:var(--bad); border-color:var(--bad); color:#1a0505; font-weight:800; }
+  button.on { border-color:var(--accent); color:var(--accent-2); } button.sm { padding:2px 8px; font-size:13px; }
+  nav { display:flex; gap:4px; padding:6px 12px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  nav button { border-radius:9px 9px 0 0; border-bottom:0; } nav button.act { background:var(--panel); border-color:var(--accent); color:var(--accent-2); }
+  nav .n { color:var(--muted); font-size:12px; margin-left:4px; }
+  .tab { display:none; min-height:0; overflow:auto; padding:10px 12px; } .tab.act { display:block; }
+  .tab.full { padding:0; position:relative; } .tab.full.act { display:block; }
+  #map, #radar { position:absolute; inset:0; background:#0f0d0b; }
+  #radar { display:none; width:100%; height:100%; }
+  .mapbar { position:absolute; top:10px; right:10px; z-index:500; display:flex; gap:6px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:10px; margin-bottom:10px; }
+  .card h3 { margin:0 0 8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; }
+  th { position:sticky; top:-10px; background:var(--panel); text-align:left; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:6px 8px; z-index:1; cursor:pointer; }
+  td { padding:5px 8px; border-top:1px solid var(--line); vertical-align:top; }
+  tr.click { cursor:pointer; } tr.click:hover td { background:var(--panel-2); }
+  .num { font-variant-numeric:tabular-nums; white-space:nowrap; } .mut { color:var(--muted); } .small { font-size:12px; } .mono { font-family:ui-monospace,monospace; }
+  .b { display:inline-block; padding:1px 7px; border-radius:6px; font-size:11px; font-weight:800; border:1px solid var(--line); background:var(--panel-2); color:var(--muted); white-space:nowrap; }
+  .b.ok { color:var(--ok); border-color:#245a3a; } .b.warn { color:var(--warn); border-color:#6b5a1f; } .b.info { color:var(--info); border-color:#28507a; } .b.acc { color:var(--accent-2); border-color:#7a4a1f; }
+  .sym { font-size:20px; line-height:1; display:inline-block; width:26px; text-align:center; }
+  .arrow { display:inline-block; color:var(--accent-2); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .empty { color:var(--muted); padding:24px; text-align:center; } .err { color:var(--bad); }
+  .msg { padding:8px 10px; border:1px solid var(--line); border-radius:10px; margin-bottom:6px; background:var(--panel); }
+  .msg.mine { border-color:var(--accent); background:#2a1a0e; }
+  .drawer { position:fixed; right:0; top:0; bottom:0; width:430px; max-width:100%; background:var(--panel); border-left:1px solid var(--line); padding:14px; overflow:auto; display:none; z-index:1000; }
+  .drawer label { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--line); }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:13px; } .kv span:nth-child(odd) { color:var(--muted); }
+  #toast { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; display:none; z-index:2000; }
+  .lbl { background:rgba(20,17,15,.85); color:#f3ece4; border:1px solid #3a3027; border-radius:6px; padding:0 4px; font:700 11px/1.4 system-ui; white-space:nowrap; }
+  .mk { font-size:22px; line-height:22px; text-align:center; filter:drop-shadow(0 0 2px #000); }
+  .leaflet-container { background:#0f0d0b; font:inherit; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background:var(--panel); color:var(--text); }
+  .lvl { display:inline-block; width:60px; height:8px; border-radius:4px; background:var(--line); overflow:hidden; vertical-align:middle; }
+  .lvl i { display:block; height:100%; background:var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><b>APRS</b> MONITOR</span>
+  <span class="pill"><span id="dot" class="dot"></span><b id="stTxt">stopped</b></span>
+  <input id="freq" type="number" step="0.005" style="width:7em" title="MHz"> <span class="mut small">MHz</span>
+  <button id="go" class="pri">&#9654; Listen</button>
+  <span class="pill small" id="dev">—</span>
+  <span class="sp"></span>
+  <span class="pill small" title="audio level of the last packet (direwolf: 30-70 is ideal)">audio <span class="lvl"><i id="lvl" style="width:0"></i></span> <b id="lvlN">—</b></span>
+  <span class="pill small" id="cnt">0 packets</span>
+  <button id="coScreen" title="uConsole screen + app launcher in this browser (remote console)" onclick="window.open('https://'+location.hostname+':6080/','co-screen')">&#128421; Screen</button><script>if(/^(127\.|localhost$|\[?::1)/.test(location.hostname))document.getElementById('coScreen').style.display='none'</script>
+  <button id="gear">&#9881;</button>
+</header>
+<nav id="tabs"></nav>
+<div style="min-height:0;display:grid">
+  <div class="tab full" data-tab="map"><div id="map"></div><canvas id="radar"></canvas>
+    <div class="mapbar"><button class="sm" id="fit" title="zoom to everything heard">Fit all</button><button class="sm" id="meBtn" title="centre on the uConsole">Me</button>
+      <button class="sm" id="radBtn" title="offline radar view: bearing + distance from your GPS position">Radar</button></div></div>
+  <div class="tab" data-tab="sta"><div class="row" style="margin-bottom:8px"><input id="sQ" placeholder="filter callsign / comment" style="flex:1;min-width:160px">
+    <select id="sKind"><option value="">all</option><option value="mobile">moving</option><option value="direct">heard direct</option><option value="obj">objects / items</option><option value="digi">digipeaters / igates</option></select></div><div id="staBox"></div></div>
+  <div class="tab" data-tab="wx"><div id="wxBox"></div></div>
+  <div class="tab" data-tab="msg"><div id="msgBox"></div></div>
+  <div class="tab" data-tab="pkt"><div class="row" style="margin-bottom:8px"><input id="pQ" placeholder="search raw packets" style="flex:1;min-width:160px">
+    <select id="pFmt"><option value="">every type</option><option>uncompressed</option><option>compressed</option><option>mic-e</option><option>object</option><option>item</option><option>message</option><option>bulletin</option><option>status</option><option>wx</option><option>telemetry-message</option><option>beacon</option><option>unparsed</option></select>
+    <label class="small row"><input type="checkbox" id="pDir"> direct only</label></div><div id="pktBox"></div></div>
+</div>
+<div class="drawer" id="det"></div>
+<div class="drawer" id="set">
+  <div class="row"><b style="font-size:17px">Settings</b><span class="sp"></span><button data-close="set">&#10005;</button></div>
+  <label>Frequency, MHz (144.390 = North America) <input id="cFreq" type="number" step="0.005" style="width:7em"></label>
+  <label>Gain (dB or "auto") <input id="cGain" style="width:6em"></label>
+  <label>PPM (blank = dongle default) <input id="cPpm" type="number" style="width:6em"></label>
+  <label>Your callsign (highlights messages to you) <input id="cCall" style="width:8em"></label>
+  <label>Keep stations on the map for, hours <input id="cAge" type="number" style="width:6em"></label>
+  <label>Start listening when the uConsole boots <input id="cBoot" type="checkbox"></label>
+  <label>Radio <select id="cDev"></select></label>
+  <div class="row" style="margin-top:10px"><button id="cSave" class="pri">Save</button><span class="sp"></span><button id="cClr" class="stop">Clear all data</button></div>
+  <div class="small mut" style="margin-top:12px">Receive only. Uses the RTL-SDR: a second USB dongle if present, otherwise it borrows the AIO one from Looking Glass while listening.</div>
+</div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id), E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
+function toast(t){const x=$('toast');x.textContent=t;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(()=>x.style.display='none',2600);}
+const tm=t=>t?new Date(t*1000).toLocaleTimeString([], {hour12:false}):'—';
+const ago=t=>{if(!t)return '—';const s=Date.now()/1000-t;return s<60?Math.round(s)+'s':s<3600?Math.round(s/60)+'m':s<86400?Math.round(s/3600)+'h':Math.round(s/86400)+'d';};
+const MI=km=>km==null?'':km<0.4?Math.round(km*3281)+' ft':(km/1.609).toFixed(km<16?1:0)+' mi';
+const CARD=b=>['N','NE','E','SE','S','SW','W','NW'][Math.round(b/45)%8];
+// APRS symbol -> emoji ('/' primary table, '\' alternate; overlays use the alternate glyph)
+const SYM={'/!':'🚓','/#':'✳️','/$':'📱','/%':'⚡','/&':'◆','/\'':'✈️','/(':'📡','/*':'❄️','/+':'✚','/-':'🏠','/.':'✖','/0':'⭕','/:':'🔥','/;':'⛺','/<':'🏍️','/=':'🚆','/>':'🚗',
+ '/?':'🖥️','/@':'🌀','/A':'🚑','/C':'🛶','/E':'👁️','/F':'🚜','/G':'▦','/H':'🏨','/I':'🖧','/K':'🏫','/N':'📻','/O':'🎈','/P':'🚔','/R':'🚐','/S':'🛰️','/T':'📺','/U':'🚌','/W':'⛈️','/X':'🚁','/Y':'⛵',
+ '/[':'🚶','/\\':'🔺','/^':'✈️','/_':'🌦️','/a':'🚑','/b':'🚲','/f':'🚒','/g':'🪂','/h':'🏥','/j':'🚙','/k':'🛻','/l':'💻','/n':'✳️','/o':'🏢','/p':'🐕','/r':'📡','/s':'🚤','/u':'🚚','/v':'🚐','/w':'💧','/y':'📡',
+ '\\#':'✳️','\\&':'◆','\\-':'🏠','\\>':'🚗','\\_':'🌦️','\\a':'⚠️','\\k':'🚙','\\n':'🔺','\\s':'🚢','\\u':'🚛','\\v':'🚐','\\O':'🎈','\\^':'✈️','\\j':'🚙','\\0':'⭕','\\9':'⛽','\\[':'🌀','\\W':'⛈️'};
+const sym=s=>{const t=s.symbol_table||'/',c=s.symbol||'';if(!c)return '•';return SYM[t+c]||SYM[(t==='/'?'/':'\\')+c]||SYM['/'+c]||'•';};
+const isDigi=s=>/^[\\/][#&]$|^[A-Z0-9][#&]$/.test((s.symbol_table||'')+(s.symbol||''))||/digi|igate|wide/i.test(s.comment||'');
+let S=null, ST=[], TAB='map', SORT='last', DET=null, RADAR=false, PK=[];
+try{TAB=localStorage.getItem('aprs_tab')||TAB;RADAR=localStorage.getItem('aprs_radar')==='1';}catch(e){}
+const TABS=[['map','Map'],['sta','Stations'],['wx','Weather'],['msg','Messages'],['pkt','Packets']];
+function tabs(){$('tabs').innerHTML=TABS.map(([k,t])=>{const n={sta:ST.length,wx:ST.filter(s=>s.wx).length,msg:MSGN}[k];return `<button data-t="${k}"${k===TAB?' class="act"':''}>${t}${n?'<span class="n">'+n+'</span>':''}</button>`;}).join('');}
+let MSGN=0;
+function setTab(t){TAB=t;try{localStorage.setItem('aprs_tab',t);}catch(e){}tabs();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('act',x.dataset.tab===t));
+  if(t==='map'){setTimeout(()=>{map&&map.invalidateSize();drawRadar();},50);}render();}
+$('tabs').onclick=e=>{const b=e.target.closest('[data-t]');if(b)setTab(b.dataset.t);};
+
+async function load(){[S,ST]=await Promise.all([fetch('/api/state').then(r=>r.json()),fetch('/api/stations').then(r=>r.json())]);head();tabs();render();}
+function head(){const s=S.status;$('dot').className='dot'+(s.running?' on':s.error?' err':'');
+  $('stTxt').textContent=s.running?'listening '+Number(s.freq).toFixed(3):s.want?(s.error||'starting…'):'stopped';
+  $('go').textContent=s.want?'■ Stop':'▶ Listen';$('go').className=s.want?'stop':'pri';
+  if(document.activeElement!==$('freq'))$('freq').value=Number(S.cfg.freq).toFixed(3);
+  $('dev').textContent=s.device||(s.radios.length?s.radios.map(r=>r.product+(r.holder?' ('+r.holder+')':'')).join(' · '):'no RTL-SDR');
+  $('cnt').innerHTML=`<b>${ST.length}</b> stations · <b>${s.packets}</b> packets`+(s.last?' · last '+ago(s.last):'');
+  const l=s.level;$('lvlN').textContent=l??'—';$('lvl').style.width=Math.min(100,(l||0))+'%';$('lvl').style.background=l==null?'':l<15||l>90?'var(--warn)':'var(--ok)';}
+function render(){({map:renderMap,sta:renderSta,wx:renderWx,msg:renderMsg,pkt:renderPkt}[TAB]||renderMap)();}
+
+// ---- map (Leaflet, local) + radar (canvas, offline)
+let map=null, LAY={}, ME=null, TRK=null;
+function initMap(){if(map||!window.L)return;map=L.map('map',{zoomControl:true,attributionControl:true}).setView([39.5,-98.35],4);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenStreetMap'}).addTo(map);
+  map.on('click',()=>{});}
+function renderMap(){$('radar').style.display=RADAR?'block':'none';$('map').style.visibility=RADAR?'hidden':'visible';$('radBtn').classList.toggle('on',RADAR);
+  if(RADAR)return drawRadar();initMap();if(!map)return;const seen={};
+  for(const s of ST){if(s.lat==null)continue;seen[s.name]=1;const old=Date.now()/1000-s.last>3600;
+    const html=`<div class="mk" style="opacity:${old?.45:1}">${sym(s)}</div>`;let m=LAY[s.name];
+    if(!m){m=LAY[s.name]=L.marker([s.lat,s.lon],{icon:L.divIcon({html,className:'',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(map);
+      m.bindTooltip(s.name,{permanent:true,direction:'right',offset:[10,0],className:'lbl'});m.on('click',()=>openDet(s.name));}
+    else{m.setLatLng([s.lat,s.lon]);m.setIcon(L.divIcon({html,className:'',iconSize:[24,24],iconAnchor:[12,12]}));}}
+  for(const k in LAY)if(!seen[k]){map.removeLayer(LAY[k]);delete LAY[k];}
+  const me=S&&S.status.me;if(me&&me.lat!=null){if(!ME){ME=L.circleMarker([me.lat,me.lon],{radius:7,color:'#ff7a1a',fillColor:'#ff7a1a',fillOpacity:.9}).addTo(map).bindTooltip('uConsole');if(!renderMap.fitted)map.setView([me.lat,me.lon],10);}else ME.setLatLng([me.lat,me.lon]);}
+  if(!renderMap.fitted&&ST.some(s=>s.lat!=null)){fitAll();renderMap.fitted=true;}}
+function fitAll(){if(!map)return;const p=ST.filter(s=>s.lat!=null).map(s=>[s.lat,s.lon]);const me=S.status.me;if(me&&me.lat!=null)p.push([me.lat,me.lon]);if(p.length)map.fitBounds(p,{padding:[40,40],maxZoom:12});}
+function drawRadar(){if(!RADAR||TAB!=='map')return;const cv=$('radar'),r=cv.getBoundingClientRect();cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio;
+  const g=cv.getContext('2d'),W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=Math.min(W,H)/2-30*devicePixelRatio,dp=devicePixelRatio;g.clearRect(0,0,W,H);
+  const P=ST.filter(s=>s.km!=null);const far=Math.max(5,...P.map(s=>s.km));const nice=[5,10,20,40,80,160,320,640].find(v=>v>=far*1.05)||far;
+  g.strokeStyle='#3a3027';g.fillStyle='#a8998a';g.font=12*dp+'px sans-serif';g.lineWidth=dp;
+  for(let i=1;i<=4;i++){g.beginPath();g.arc(cx,cy,R*i/4,0,7);g.stroke();g.fillText(((nice*i/4)/1.609).toFixed(nice<20?1:0)+' mi',cx+4*dp,cy-R*i/4-3*dp);}
+  for(let a=0;a<360;a+=45){const x=Math.sin(a*Math.PI/180),y=-Math.cos(a*Math.PI/180);g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+x*R,cy+y*R);g.stroke();g.fillText(CARD(a),cx+x*(R+14*dp)-5*dp,cy+y*(R+14*dp)+4*dp);}
+  g.fillStyle='#ff7a1a';g.beginPath();g.arc(cx,cy,5*dp,0,7);g.fill();
+  if(!P.length){g.fillStyle='#a8998a';g.fillText(S&&S.status.me&&S.status.me.lat!=null?'No positioned stations yet':'Radar needs a GPS fix',cx-80*dp,cy+30*dp);}
+  g.textBaseline='middle';
+  for(const s of P){const d=s.km/nice*R,x=cx+Math.sin(s.brg*Math.PI/180)*d,y=cy-Math.cos(s.brg*Math.PI/180)*d;
+    g.globalAlpha=Date.now()/1000-s.last>3600?.45:1;g.font=18*dp+'px sans-serif';g.fillText(sym(s),x-10*dp,y);g.font='bold '+11*dp+'px sans-serif';g.fillStyle='#f3ece4';g.fillText(s.name,x+12*dp,y);g.fillStyle='#ff7a1a';}
+  g.globalAlpha=1;
+  cv.onclick=e=>{const b=cv.getBoundingClientRect(),mx=(e.clientX-b.left)*dp,my=(e.clientY-b.top)*dp;let best=null,bd=30*dp;
+    for(const s of P){const d=s.km/nice*R,x=cx+Math.sin(s.brg*Math.PI/180)*d,y=cy-Math.cos(s.brg*Math.PI/180)*d,q=Math.hypot(x-mx,y-my);if(q<bd){bd=q;best=s;}}if(best)openDet(best.name);};}
+$('fit').onclick=()=>{if(RADAR){RADAR=false;try{localStorage.setItem('aprs_radar','0');}catch(e){}renderMap();}fitAll();};
+$('meBtn').onclick=()=>{const me=S.status.me;if(me&&me.lat!=null&&map){if(RADAR){RADAR=false;renderMap();}map.setView([me.lat,me.lon],12);}else toast('no GPS fix');};
+$('radBtn').onclick=()=>{RADAR=!RADAR;try{localStorage.setItem('aprs_radar',RADAR?'1':'0');}catch(e){}renderMap();if(!RADAR)setTimeout(()=>map&&map.invalidateSize(),50);};
+addEventListener('resize',()=>{if(RADAR)drawRadar();});
+
+// ---- stations
+function where(s){return s.km!=null?`<span class="num">${MI(s.km)}</span> <span class="arrow" style="transform:rotate(${s.brg}deg)">↑</span> <span class="small mut">${CARD(s.brg)}</span>`:s.lat!=null?'<span class="small mut">no GPS fix here</span>':'<span class="small mut">no position</span>';}
+function heard(s){return s.direct?'<span class="b ok">direct</span>':`<span class="b info" title="via ${E(Object.keys(s.digis||{}).join(', '))}">via ${E(Object.keys(s.digis||{}).slice(-1)[0]||'digi')}</span>`;}
+function renderSta(){const q=$('sQ').value.trim().toLowerCase(),k=$('sKind').value;
+  let L=ST.filter(s=>(!q||(s.name+' '+(s.comment||'')+' '+(s.status||'')).toLowerCase().includes(q))&&(!k||(k==='mobile'?s.speed>2:k==='direct'?s.direct:k==='obj'?!!s.kind:isDigi(s))));
+  L.sort({last:(a,b)=>b.last-a.last,name:(a,b)=>a.name.localeCompare(b.name),dist:(a,b)=>(a.km??1e9)-(b.km??1e9),n:(a,b)=>b.n-a.n}[SORT]);
+  $('staBox').innerHTML=L.length?`<table><tr><th></th><th data-s="name">Station</th><th data-s="last">Heard</th><th data-s="dist">Where</th><th>Path</th><th>Moving</th><th>Comment / status</th><th data-s="n">Pkts</th></tr>`+
+    L.map(s=>`<tr class="click" data-st="${E(s.name)}"><td class="sym">${sym(s)}</td><td><b>${E(s.name)}</b>${s.kind?`<div class="small mut">${s.kind} by ${E(s.by)}${s.alive===false?' · killed':''}</div>`:''}</td>
+      <td class="num">${ago(s.last)}</td><td>${where(s)}</td><td>${heard(s)}</td>
+      <td class="num small">${s.speed>2?Math.round(s.speed/1.609)+' mph '+(s.course!=null?CARD(s.course):''):''}${s.altitude!=null?'<div class="mut">'+Math.round(s.altitude*3.281)+' ft</div>':''}</td>
+      <td class="small">${E((s.comment||'')+(s.status?' '+s.status:'')).slice(0,120)}${s.wx?' <span class="b acc">wx</span>':''}</td><td class="num">${s.n}</td></tr>`).join('')+'</table>'
+    :'<div class="empty">'+(ST.length?'Nothing matches the filter.':S&&S.status.want?'Listening… APRS stations beacon every 1-30 minutes; digipeaters and igates usually show up first.':'Press <b>Listen</b> to start receiving on '+(S?Number(S.cfg.freq).toFixed(3):'144.390')+' MHz.')+'</div>';
+  document.querySelectorAll('#staBox th[data-s]').forEach(h=>h.onclick=()=>{SORT=h.dataset.s;renderSta();});}
+$('sQ').oninput=renderSta;$('sKind').onchange=renderSta;
+document.addEventListener('click',e=>{const r=e.target.closest('[data-st]');if(r)openDet(r.dataset.st);const c=e.target.closest('[data-close]');if(c)$(c.dataset.close).style.display='none';});
+
+// ---- weather
+function renderWx(){const L=ST.filter(s=>s.wx).sort((a,b)=>b.wx_t-a.wx_t);const F=c=>c==null?'':Math.round(c*9/5+32)+'°F';
+  $('wxBox').innerHTML=L.length?`<table><tr><th>Station</th><th>Updated</th><th>Temp</th><th>Humidity</th><th>Wind</th><th>Rain 1h / 24h</th><th>Pressure</th><th>Where</th></tr>`+L.map(s=>{const w=s.wx;
+    return `<tr class="click" data-st="${E(s.name)}"><td><span class="sym">${sym(s)}</span><b>${E(s.name)}</b></td><td class="num">${ago(s.wx_t)}</td><td class="num"><b>${F(w.temperature)}</b></td>
+    <td class="num">${w.humidity!=null?w.humidity+'%':''}</td><td class="num">${w.wind_speed!=null?Math.round(w.wind_speed*2.237)+' mph':''}${w.wind_direction!=null?' '+CARD(w.wind_direction):''}${w.wind_gust!=null?' <span class="mut">g'+Math.round(w.wind_gust*2.237)+'</span>':''}</td>
+    <td class="num">${w.rain_1h!=null?(w.rain_1h/25.4).toFixed(2)+'"':''}${w.rain_24h!=null?' / '+(w.rain_24h/25.4).toFixed(2)+'"':''}</td><td class="num">${w.pressure!=null?w.pressure.toFixed(1)+' hPa':''}</td><td>${where(s)}</td></tr>`;}).join('')+'</table>'
+    :'<div class="empty">No weather stations heard yet. APRS weather stations (🌦) report every 5-15 minutes.</div>';}
+
+// ---- messages
+let MSGS=[];
+async function renderMsg(){MSGS=await (await fetch('/api/messages')).json();MSGN=MSGS.filter(m=>m.mine).length;
+  const B=MSGS.filter(m=>m.bulletin),M=MSGS.filter(m=>!m.bulletin);
+  const one=m=>`<div class="msg${m.mine?' mine':''}"><div class="small mut">${tm(m.t)} · <b style="color:var(--text)">${E(m.from)}</b> → <b style="color:var(--text)">${E(m.to)}</b>${m.no?' #'+E(m.no):''}${m.mine?' <span class="b acc">to you</span>':''}</div>${E(m.text)}</div>`;
+  $('msgBox').innerHTML=`<div class="card"><h3>Bulletins &amp; announcements (${B.length})</h3>${B.map(one).join('')||'<div class="mut small">None heard.</div>'}</div>
+    <div class="card"><h3>Messages (${M.length})</h3>${M.map(one).join('')||'<div class="mut small">None heard. Station-to-station messages to <b>'+E(S.cfg.mycall)+'</b> are highlighted.</div>'}</div>`;tabs();}
+
+// ---- packets
+async function renderPkt(){const q=new URLSearchParams({limit:300});if($('pQ').value.trim())q.set('q',$('pQ').value.trim());if($('pFmt').value)q.set('fmt',$('pFmt').value);if($('pDir').checked)q.set('direct','1');
+  PK=await (await fetch('/api/packets?'+q)).json();
+  $('pktBox').innerHTML=PK.length?`<table><tr><th>Time</th><th>From</th><th>Type</th><th>Path</th><th>Raw</th></tr>`+PK.map(p=>`<tr class="click" data-st="${E(p.name)}"><td class="num mut">${tm(p.t)}${p.level!=null?'<div class="small">lvl '+p.level+'</div>':''}</td>
+    <td><b>${E(p.name)}</b>${p.name!==p.src?'<div class="small mut">by '+E(p.src)+'</div>':''}</td><td><span class="b">${E(p.fmt)}</span></td><td class="small">${p.direct?'<span class="b ok">direct</span>':E(p.path)}</td>
+    <td class="small mono" style="word-break:break-all">${E(p.raw)}</td></tr>`).join('')+'</table>':'<div class="empty">No packets'+($('pQ').value||$('pFmt').value?' match.':' yet.')+'</div>';}
+let pt=null;$('pQ').oninput=()=>{clearTimeout(pt);pt=setTimeout(renderPkt,300);};$('pFmt').onchange=renderPkt;$('pDir').onchange=renderPkt;
+
+// ---- station detail
+async function openDet(name){DET=name;const d=await (await fetch('/api/station?name='+encodeURIComponent(name))).json(),s=d.station||{},x=ST.find(r=>r.name===name)||{};
+  const W=s.wx;const F=c=>c==null?'—':Math.round(c*9/5+32)+'°F';
+  let h=`<div class="row"><span class="sym" style="font-size:30px;width:36px">${sym(s)}</span><b style="font-size:19px">${E(name)}</b><span class="sp"></span><button data-close="det">&#10005;</button></div>
+    <div class="kv" style="margin-top:8px"><span>Heard</span><span>${ago(s.last)} ago · ${s.n} packet(s) since ${tm(s.first)}</span>
+    <span>Path</span><span>${heard(x.name?x:s)} <span class="small mut">${E(s.path||'')}</span></span>
+    ${Object.keys(s.digis||{}).length?`<span>Via</span><span>${Object.entries(s.digis).map(([k,v])=>E(k)+' ×'+v).join(', ')}</span>`:''}
+    ${s.lat!=null?`<span>Position</span><span>${s.lat.toFixed(5)}, ${s.lon.toFixed(5)} <a target="_blank" href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=14/${s.lat}/${s.lon}">map</a> · <a target="_blank" href="https://aprs.fi/#!call=${encodeURIComponent(name)}">aprs.fi</a></span><span>From you</span><span>${where(x)}</span>`:''}
+    ${s.speed!=null?`<span>Moving</span><span>${Math.round(s.speed/1.609)} mph${s.course!=null?' heading '+s.course+'° '+CARD(s.course):''}</span>`:''}
+    ${s.altitude!=null?`<span>Altitude</span><span>${Math.round(s.altitude*3.281)} ft</span>`:''}
+    ${s.kind?`<span>${s.kind}</span><span>by ${E(s.by)}${s.alive===false?' (killed)':''}</span>`:''}
+    ${s.comment?`<span>Comment</span><span>${E(s.comment)}</span>`:''}${s.status?`<span>Status</span><span>${E(s.status)}</span>`:''}
+    ${s.phg?`<span>PHG</span><span>${E(s.phg)}</span>`:''}
+    ${W?`<span>Weather</span><span>${F(W.temperature)} · ${W.humidity??'—'}% · wind ${W.wind_speed!=null?Math.round(W.wind_speed*2.237)+' mph':'—'} ${W.wind_direction!=null?CARD(W.wind_direction):''} · ${W.pressure!=null?W.pressure.toFixed(1)+' hPa':''}</span>`:''}</div>`;
+  if((s.track||[]).length>1)h+=`<div class="row" style="margin-top:8px"><button class="sm" id="showTrk">Show track on map (${s.track.length} points)</button></div>`;
+  h+=`<h3 class="mut small" style="margin:14px 0 4px;letter-spacing:.14em">PACKETS</h3>`+(d.packets||[]).map(p=>`<div class="small" style="border-top:1px solid var(--line);padding:4px 0"><span class="mut">${tm(p.t)} · ${E(p.fmt)}${p.level!=null?' · lvl '+p.level:''}</span><div class="mono" style="word-break:break-all">${E(p.raw)}</div></div>`).join('');
+  $('det').innerHTML=h;$('det').style.display='block';
+  if($('showTrk'))$('showTrk').onclick=()=>{if(RADAR){RADAR=false;renderMap();}setTab('map');initMap();if(TRK)map.removeLayer(TRK);TRK=L.polyline(s.track.map(t=>[t[0],t[1]]),{color:'#ffb066',weight:3}).addTo(map);map.fitBounds(TRK.getBounds(),{padding:[40,40]});};}
+
+// ---- controls + settings
+$('go').onclick=async()=>{if(S.status.want)await api('/api/stop');else await api('/api/start',{freq:+$('freq').value||null});setTimeout(load,600);};
+$('gear').onclick=()=>{const c=S.cfg;$('cFreq').value=c.freq;$('cGain').value=c.gain;$('cPpm').value=c.ppm??'';$('cCall').value=c.mycall;$('cAge').value=c.max_age_h;$('cBoot').checked=!!c.record_on_boot;
+  $('cDev').innerHTML='<option value="">Automatic (second RTL first, else borrow AIO)</option>'+S.status.radios.map(r=>`<option value="${E(r.serial)}"${c.device===r.serial?' selected':''}>${E(r.product)} SN ${E(r.serial)}</option>`).join('');$('set').style.display='block';};
+$('cSave').onclick=async()=>{await api('/api/settings',{freq:$('cFreq').value,gain:$('cGain').value,ppm:$('cPpm').value,mycall:$('cCall').value,max_age_h:$('cAge').value,record_on_boot:$('cBoot').checked,device:$('cDev').value});$('set').style.display='none';toast('saved');load();};
+$('cClr').onclick=async()=>{if(!confirm('Delete every stored packet and station?'))return;await api('/api/clear');Object.values(LAY).forEach(m=>map&&map.removeLayer(m));LAY={};load();toast('cleared');};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.drawer').forEach(d=>d.style.display='none');});
+
+let pend=null;const soon=(ms)=>{if(!pend)pend=setTimeout(()=>{pend=null;load();if(DET&&$('det').style.display==='block')openDet(DET);},ms||700);};
+function stream(){const es=new EventSource('/api/stream');
+  es.onmessage=e=>{const ev=JSON.parse(e.data);
+    if(ev.t==='pkt'){if(ev.msg&&ev.msg.mine)toast('Message for you from '+ev.msg.from+': '+ev.msg.text);soon(800);}
+    else if(ev.t==='log')toast(ev.msg);else soon(300);};
+  es.onerror=()=>{es.close();setTimeout(stream,3000);};}
+setTab(TAB);load();stream();setInterval(load,15000);
+</script>
+</body>
+</html>

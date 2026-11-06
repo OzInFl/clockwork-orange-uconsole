@@ -1,0 +1,6 @@
+# meshcore-uconsole on the AIO V2. Its AIOv2 preset uses enable pin 27, but on this board 27 is the
+# GPS rail (verified: NMEA stops when 27 is low) and LoRa is 16 - don't let it switch the GPS off.
+MESHCORE_EN_PINS=16
+MESHCORE_GPIO_CHIP=0
+MESHCORE_USE_DIO2_RF=1
+MESHCORE_USE_DIO3_TCXO=1

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pager Recorder</title>
+<style>
+  :root { --bg:#14110f; --panel:#1d1916; --panel-2:#262019; --line:#3a3027; --text:#f3ece4; --muted:#a8998a;
+    --accent:#ff7a1a; --accent-2:#ffb066; --ok:#5fd38d; --warn:#ffcc4d; --bad:#ff5d5d; --off:#6b5e52; --r:12px; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:15px/1.35 "Nunito Sans","Noto Sans",system-ui,sans-serif; }
+  body { display:grid; grid-template-rows:auto 1fr; overflow:hidden; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 14px; background:linear-gradient(90deg,#2a1a0e,var(--panel) 40%); border-bottom:1px solid var(--line); }
+  .brand { font-weight:800; letter-spacing:.12em; font-size:16px; } .brand b { color:var(--accent); }
+  .sp { flex:1; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-size:13px; white-space:nowrap; }
+  .pill b { color:var(--text); }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--off); display:inline-block; }
+  .dot.on { background:var(--ok); box-shadow:0 0 8px var(--ok); } .dot.err { background:var(--bad); }
+  button, input, select { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:5px 10px; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  button.pri { background:var(--accent); color:#1a0f05; border-color:var(--accent); font-weight:800; }
+  button.stop { background:var(--bad); border-color:var(--bad); color:#1a0505; font-weight:800; }
+  button.on { border-color:var(--accent); color:var(--accent-2); }
+  input[type=number] { width:7.5em; } input.ric { width:8.5em; }
+  main { display:grid; grid-template-columns:330px 1fr; min-height:0; }
+  aside { border-right:1px solid var(--line); padding:10px; overflow:auto; display:flex; flex-direction:column; gap:10px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:10px; }
+  .card h3 { margin:0 0 8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .w { display:grid; grid-template-columns:6px 1fr auto; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--line); }
+  .w:first-of-type { border-top:0; } .w .bar { align-self:stretch; border-radius:3px; }
+  .w .ric { font-weight:800; font-variant-numeric:tabular-nums; } .w.off { opacity:.45; }
+  .small { font-size:12px; } .mut { color:var(--muted); }
+  .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  section { display:grid; grid-template-rows:auto 1fr; min-height:0; }
+  .tools { display:flex; gap:8px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  #feed { overflow:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th { position:sticky; top:0; background:var(--panel); text-align:left; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding:6px 8px; z-index:1; }
+  td { padding:6px 8px; border-top:1px solid var(--line); vertical-align:top; }
+  td.t { color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  td.r { white-space:nowrap; font-weight:700; font-variant-numeric:tabular-nums; }
+  td.m { white-space:pre-wrap; word-break:break-word; }
+  tr.hit td:first-child { box-shadow:inset 4px 0 0 var(--c, var(--accent)); }
+  tr.hit { background:color-mix(in srgb, var(--c, var(--accent)) 9%, transparent); }
+  tr.dup { opacity:.5; } tr.new { animation:flash 1.6s ease-out; }
+  @keyframes flash { from { background:color-mix(in srgb, var(--c, var(--accent)) 45%, transparent); } }
+  .b { display:inline-block; padding:1px 7px; border-radius:6px; font-size:11px; font-weight:800; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); }
+  .lbl { display:inline-block; padding:1px 7px; border-radius:6px; font-size:12px; font-weight:800; color:#140c05; }
+  .empty { color:var(--muted); padding:30px; text-align:center; }
+  #alert { position:fixed; left:50%; top:70px; transform:translateX(-50%); min-width:520px; max-width:90vw; padding:14px 18px; border-radius:14px;
+    background:var(--panel); border:3px solid var(--accent); box-shadow:0 10px 40px #000a; display:none; z-index:20; cursor:pointer; }
+  #alert .h { font-size:22px; font-weight:800; } #alert .m { font-size:18px; margin-top:6px; white-space:pre-wrap; }
+  #drawer { position:fixed; right:0; top:0; bottom:0; width:380px; background:var(--panel); border-left:1px solid var(--line); padding:14px; overflow:auto; display:none; z-index:15; }
+  #drawer label { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--line); }
+  #toast { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; display:none; z-index:30; }
+  .err { color:var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><b>PAGER</b> RECORDER</span>
+  <span class="pill"><span id="dot" class="dot"></span><b id="stTxt">stopped</b></span>
+  <input id="freq" type="number" step="0.00125" title="MHz"> <span class="mut small">MHz</span>
+  <button id="go" class="pri">&#9654; Record</button>
+  <span class="pill small" id="dev">—</span>
+  <span class="sp"></span>
+  <span class="pill small" id="cnt">0 pages</span>
+  <button id="dbg" title="Debug: show every page decoded, not just watched RICs">Debug: off</button>
+  <button id="snd" title="sound in this window">&#128266;</button>
+  <button id="coScreen" title="uConsole screen + app launcher in this browser (remote console)" onclick="window.open('https://'+location.hostname+':6080/','co-screen')">&#128421; Screen</button><script>if(/^(127\.|localhost$|\[?::1)/.test(location.hostname))document.getElementById('coScreen').style.display='none'</script>
+  <button id="gear">&#9881; Settings</button>
+</header>
+<main>
+  <aside>
+    <div class="card">
+      <h3>Watch a RIC / capcode</h3>
+      <div class="row"><input id="nRic" class="ric" placeholder="RIC / capcode" inputmode="numeric"><input id="nLbl" placeholder="Label" style="flex:1;min-width:0"></div>
+      <div class="row" style="margin-top:6px"><select id="nSnd"></select><button id="nPrev" title="preview">&#9654;</button>
+        <input id="nCol" type="color" value="#ff7a1a" style="padding:0;width:38px;height:32px"><span class="sp"></span><button id="nAdd" class="pri">+ Watch</button></div>
+    </div>
+    <div class="card"><h3>Watched (<span id="wN">0</span>)</h3><div id="wList"></div></div>
+    <div class="card small mut" id="help">Pages to watched RICs alert with their sound and show here. Turn on <b>Debug</b> to see every page on the channel; tap a RIC there to watch it.</div>
+  </aside>
+  <section>
+    <div class="tools">
+      <input id="q" placeholder="search messages" style="flex:1;min-width:160px">
+      <input id="fRic" class="ric" placeholder="RIC" inputmode="numeric">
+      <button id="hideDup" class="on" title="hide repeats of the same page">Hide repeats</button>
+      <button id="hideTone" title="hide tone-only pages (no message) unless the RIC is watched">Hide tone-only</button>
+      <span class="mut small" id="viewTxt"></span>
+    </div>
+    <div id="feed"></div>
+  </section>
+</main>
+<div id="alert"><div class="h" id="aH"></div><div class="m" id="aM"></div><div class="small mut" style="margin-top:6px">tap to dismiss</div></div>
+<div id="drawer">
+  <div class="row"><b style="font-size:17px">Settings</b><span class="sp"></span><button id="dClose">&#10005;</button></div>
+  <label>Radio <select id="sDev"></select></label>
+  <label>Gain (dB or "auto") <input id="sGain" style="width:6em"></label>
+  <label>PPM correction (blank = dongle default) <input id="sPpm" type="number" step="1" style="width:6em"></label>
+  <label>Squelch (0 = off) <input id="sSq" type="number" min="0" style="width:6em"></label>
+  <label>Repeat window, s (same RIC + text) <input id="sDd" type="number" min="0" style="width:6em"></label>
+  <label>Heuristic pruning (fewer false POCSAG) <input id="sPr" type="checkbox"></label>
+  <label>Invert FSK (try if nothing decodes) <input id="sInv" type="checkbox"></label>
+  <label>Alert on uConsole speaker <input id="sSd" type="checkbox"></label>
+  <label>Alert in this browser window <input id="sSb" type="checkbox"></label>
+  <label>Speaker volume <input id="sVol" type="range" min="0.05" max="1" step="0.05"></label>
+  <label>Start recording when the uConsole boots <input id="sBoot" type="checkbox"></label>
+  <div class="row" style="margin-top:10px"><button id="sSave" class="pri">Save</button></div>
+  <h3 class="mut small" style="margin-top:18px;letter-spacing:.14em">DATA</h3>
+  <div class="small mut" id="dStats"></div>
+  <div class="row" style="margin-top:8px"><a href="/api/export.csv"><button>Export watched CSV</button></a><a href="/api/export.csv?all=1"><button>Export all CSV</button></a></div>
+  <div class="row" style="margin-top:8px"><button id="clrU">Delete unwatched pages</button><button id="clrA">Delete ALL pages</button></div>
+  <h3 class="mut small" style="margin-top:18px;letter-spacing:.14em">RADIOS</h3>
+  <div class="small" id="dRad"></div>
+</div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id), E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S=null, ROWS=[], HIDEDUP=true, HIDETONE=false, AUDIO=null, audioOk=false, BSOUND=true;
+try{BSOUND=localStorage.getItem('pg_bsnd')!=='0';HIDEDUP=localStorage.getItem('pg_dup')!=='0';HIDETONE=localStorage.getItem('pg_tone')==='1';}catch(e){}
+const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
+function toast(t){const x=$('toast');x.textContent=t;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(()=>x.style.display='none',2600);}
+const tm=t=>{const d=new Date(t*1000),n=new Date();return (d.toDateString()===n.toDateString()?'':(d.getMonth()+1)+'/'+d.getDate()+' ')+d.toLocaleTimeString([], {hour12:false});};
+const ago=t=>{if(!t)return 'never';const s=Date.now()/1000-t;return s<60?Math.round(s)+'s ago':s<3600?Math.round(s/60)+'m ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)+'d ago';};
+
+function play(n){if(!BSOUND||!(S&&S.cfg.sound_browser))return;try{AUDIO=new Audio('/sound/'+n+'.wav');AUDIO.play().then(()=>audioOk=true).catch(()=>toast('Click anywhere once to allow sound in this window'));}catch(e){}}
+function preview(n){new Audio('/sound/'+n+'.wav').play().catch(()=>{});}
+
+async function load(){const r=await fetch('/api/state');S=await r.json();renderHead();renderWatch();}
+function renderHead(){const s=S.status,c=S.cfg;
+  $('dot').className='dot'+(s.running?' on':s.error&&s.want?' err':'');
+  $('stTxt').textContent=s.running?'recording':s.want?(s.error?'waiting':'starting…'):'stopped';
+  $('go').className=s.want?'stop':'pri';$('go').innerHTML=s.want?'&#9632; Stop':'&#9654; Record';
+  if(document.activeElement!==$('freq'))$('freq').value=Number(c.freq).toFixed(5);
+  $('dev').innerHTML=s.error&&s.want?'<span class="err">'+E(s.error)+'</span>':E(s.device||'no radio in use');
+  $('cnt').textContent=S.stored.toLocaleString()+' pages · '+(S.stored_watched||0).toLocaleString()+' watched';
+  $('dbg').textContent='Debug: '+(c.debug?'ON (all pages)':'off');$('dbg').className=c.debug?'on':'';
+  $('snd').innerHTML=BSOUND?'&#128266;':'&#128263;';$('hideDup').className=HIDEDUP?'on':'';$('hideTone').className=HIDETONE?'on':'';
+  $('viewTxt').textContent=c.debug?'showing every page decoded':'showing watched RICs only';}
+function renderWatch(){const w=S.cfg.watch;$('wN').textContent=w.length;
+  $('wList').innerHTML=w.length?w.map(x=>`<div class="w${x.on?'':' off'}"><span class="bar" style="background:${E(x.color)}"></span>
+    <div><span class="ric">${x.ric}</span> <span>${E(x.label)}</span><div class="small mut">${x.n||0} pages · last ${ago(x.last)}</div>
+      <div class="row small" style="margin-top:3px"><select data-ws="${x.ric}">${S.sounds.map((n,i)=>`<option value="${i+1}"${x.sound==i+1?' selected':''}>${i+1}. ${n}</option>`).join('')}</select>
+      <button data-wp="${x.sound}" title="preview">&#9654;</button><input type="color" data-wc="${x.ric}" value="${E(x.color)}" style="padding:0;width:30px;height:28px"></div></div>
+    <div class="row" style="flex-direction:column"><button data-wo="${x.ric}" data-v="${x.on?0:1}">${x.on?'mute':'unmute'}</button><button data-wd="${x.ric}">remove</button></div></div>`).join(''):'<div class="mut small">No RICs watched yet.</div>';}
+
+async function loadPages(){const c=S.cfg,q=new URLSearchParams({limit:400,all:c.debug?'1':'0'});
+  if($('q').value.trim())q.set('q',$('q').value.trim());if($('fRic').value.trim())q.set('ric',$('fRic').value.trim());if(HIDEDUP)q.set('nodup','1');if(HIDETONE)q.set('notone','1');
+  ROWS=await (await fetch('/api/pages?'+q)).json();renderFeed();}
+function rowHtml(r,isNew){const c=r.color||'';
+  const lbl=r.watched?`<span class="lbl" style="background:${E(c||'#ff7a1a')}">${E(r.label||'watched')}</span> `:'';
+  const ric=S.cfg.debug&&!r.watched?`<a href="#" data-qw="${r.ric}" title="watch this RIC" style="color:inherit">${r.ric}</a>`:r.ric;
+  const extra=r.rics&&String(r.rics).split(' ').length>1?` <span class="small mut">+${String(r.rics).split(' ').length-1} more</span>`:'';
+  const msg=r.msg?E(r.msg):`<span class="mut">(${E(r.kind)}${r.kind==='tone'?' only: no message':''})</span>`;
+  return `<tr class="${r.watched?'hit ':''}${r.dup?'dup ':''}${isNew?'new':''}" style="${c?'--c:'+E(c):''}"><td class="t">${tm(r.t)}</td><td class="r">${lbl}${ric}${extra}</td>
+    <td><span class="b">${E(r.proto)}</span>${r.func!=null?' <span class="small mut">fn '+r.func+'</span>':''}${r.dup?' <span class="small mut">repeat</span>':''}</td><td class="m">${msg}</td></tr>`;}
+function renderFeed(newId){$('feed').innerHTML=ROWS.length?'<table><tr><th>Time</th><th>RIC</th><th>Type</th><th>Message</th></tr>'+ROWS.map(r=>rowHtml(r,r.id===newId)).join('')+'</table>':
+  `<div class="empty">${S.cfg.debug?'No pages decoded yet on this channel.':'No pages to watched RICs yet. Turn on Debug to see everything on the channel.'}</div>`;}
+
+function showAlert(p){const a=$('alert');a.style.borderColor=p.color||'#ff7a1a';
+  $('aH').innerHTML=`<span class="lbl" style="background:${E(p.color||'#ff7a1a')}">${E(p.label||'RIC '+p.ric)}</span> RIC ${p.ric} <span class="small mut">${E(p.proto)} · ${tm(p.t)}</span>`;
+  $('aM').textContent=p.msg||'('+p.kind+' page)';a.style.display='block';clearTimeout(a._t);a._t=setTimeout(()=>a.style.display='none',20000);play(p.sound||1);}
+$('alert').onclick=()=>$('alert').style.display='none';
+
+function stream(){const es=new EventSource('/api/stream');
+  es.onmessage=e=>{const ev=JSON.parse(e.data);
+    if(ev.t==='page'){const p=ev.page;S.stored++;if(p.watched)S.stored_watched++;
+      const f=$('fRic').value.trim(),qq=$('q').value.trim().toLowerCase();
+      const show=(S.cfg.debug||p.watched)&&!(HIDEDUP&&p.dup)&&!(HIDETONE&&p.kind==='tone'&&!p.watched)&&(!f||String(p.rics||p.ric).split(' ').includes(f))&&(!qq||(p.msg||'').toLowerCase().includes(qq));
+      if(show){ROWS.unshift(p);if(ROWS.length>600)ROWS.pop();renderFeed(p.id);}
+      if(ev.alert)showAlert(p);renderHead();}
+    else if(ev.t==='status')load();else if(ev.t==='log')toast(ev.msg);};
+  es.onerror=()=>{es.close();setTimeout(stream,3000);};}
+
+$('go').onclick=async()=>{if(S.status.want){await api('/api/stop');toast('stopped');}else{await api('/api/start',{freq:$('freq').value});toast('recording '+Number($('freq').value).toFixed(5)+' MHz');}setTimeout(load,800);};
+$('freq').onchange=async()=>{await api('/api/settings',{freq:$('freq').value});toast('frequency '+Number($('freq').value).toFixed(5)+' MHz');load();};
+$('dbg').onclick=async()=>{await api('/api/settings',{debug:!S.cfg.debug});await load();loadPages();};
+$('snd').onclick=()=>{BSOUND=!BSOUND;try{localStorage.setItem('pg_bsnd',BSOUND?'1':'0');}catch(e){}renderHead();if(BSOUND)preview(1);};
+$('hideTone').onclick=()=>{HIDETONE=!HIDETONE;try{localStorage.setItem('pg_tone',HIDETONE?'1':'0');}catch(e){}renderHead();loadPages();};
+$('hideDup').onclick=()=>{HIDEDUP=!HIDEDUP;try{localStorage.setItem('pg_dup',HIDEDUP?'1':'0');}catch(e){}renderHead();loadPages();};
+let qt;$('q').oninput=$('fRic').oninput=()=>{clearTimeout(qt);qt=setTimeout(loadPages,300);};
+$('nPrev').onclick=()=>preview($('nSnd').value);
+$('nAdd').onclick=async()=>{const r=await api('/api/watch',{ric:$('nRic').value.trim(),label:$('nLbl').value.trim(),sound:$('nSnd').value,color:$('nCol').value,on:true});
+  if(!r.ok)return toast(r.err||'error');$('nRic').value='';$('nLbl').value='';await load();loadPages();};
+$('nRic').onkeydown=$('nLbl').onkeydown=e=>{if(e.key==='Enter')$('nAdd').click();};
+document.addEventListener('click',async e=>{const t=e.target;
+  if(t.dataset.wp)preview(t.dataset.wp);
+  if(t.dataset.wd&&confirm('Stop watching RIC '+t.dataset.wd+'? (Its pages stay recorded.)')){await api('/api/watch/delete',{ric:t.dataset.wd});await load();loadPages();}
+  if(t.dataset.wo){await api('/api/watch',{ric:t.dataset.wo,on:t.dataset.v==='1'});load();}
+  if(t.dataset.qw){e.preventDefault();$('nRic').value=t.dataset.qw;$('nLbl').focus();toast('RIC '+t.dataset.qw+': add a label and sound, then + Watch');}});
+document.addEventListener('change',async e=>{const t=e.target;
+  if(t.dataset.ws){await api('/api/watch',{ric:t.dataset.ws,sound:t.value});preview(t.value);load();}
+  if(t.dataset.wc){await api('/api/watch',{ric:t.dataset.wc,color:t.value});await load();loadPages();}});
+
+$('gear').onclick=()=>{const c=S.cfg,d=$('drawer');d.style.display='block';
+  $('sDev').innerHTML='<option value="">Automatic (second RTL first, else borrow AIO)</option>'+S.status.radios.map(r=>`<option value="${E(r.serial)}"${c.device===r.serial?' selected':''}>${E(r.product)} SN ${E(r.serial)}</option>`).join('');
+  $('sGain').value=c.gain;$('sPpm').value=c.ppm??'';$('sSq').value=c.squelch;$('sDd').value=c.dedupe_s;$('sPr').checked=c.prune;$('sInv').checked=c.invert;
+  $('sSd').checked=c.sound_device;$('sSb').checked=c.sound_browser;$('sVol').value=c.volume;$('sBoot').checked=c.record_on_boot;
+  $('dStats').innerHTML=`${S.stored.toLocaleString()} pages stored (${(S.stored_watched||0).toLocaleString()} watched). This session: ${S.status.pages} decoded${S.status.corrupt?', '+S.status.corrupt+' corrupt FLEX frames dropped':''} `+
+    Object.entries(S.status.by_proto||{}).map(([k,v])=>`${k} ${v}`).join(', ');
+  $('dRad').innerHTML=S.status.radios.length?S.status.radios.map(r=>`<div>${E(r.maker)} ${E(r.product)} <span class="mut">SN ${E(r.serial)}</span> · ${r.holder?'<b>'+E(r.holder)+'</b>':'<span class="mut">free</span>'}</div>`).join(''):'<span class="err">No RTL-SDR found</span>';};
+$('dClose').onclick=()=>$('drawer').style.display='none';
+$('sSave').onclick=async()=>{const r=await api('/api/settings',{device:$('sDev').value,gain:$('sGain').value,ppm:$('sPpm').value,squelch:$('sSq').value||0,dedupe_s:$('sDd').value||0,
+  prune:$('sPr').checked,invert:$('sInv').checked,sound_device:$('sSd').checked,sound_browser:$('sSb').checked,volume:$('sVol').value,record_on_boot:$('sBoot').checked});
+  toast(r.restarted?'saved, receiver restarted':'saved');$('drawer').style.display='none';load();};
+$('sVol').onchange=()=>api('/api/settings',{volume:$('sVol').value}).then(()=>api('/api/sound',{n:1}));
+$('clrU').onclick=async()=>{if(confirm('Delete every recorded page that is NOT to a watched RIC?')){const r=await api('/api/clear',{scope:'unwatched'});toast(r.deleted+' deleted');load();loadPages();}};
+$('clrA').onclick=async()=>{if(confirm('Delete ALL recorded pages, watched ones too? This cannot be undone.')){const r=await api('/api/clear',{scope:'all'});toast(r.deleted+' deleted');load();loadPages();}};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('drawer').style.display='none';$('alert').style.display='none';}});
+
+(async()=>{await load();$('nSnd').innerHTML=S.sounds.map((n,i)=>`<option value="${i+1}">${i+1}. ${n}</option>`).join('');await loadPages();stream();setInterval(load,5000);})();
+</script>
+</body>
+</html>

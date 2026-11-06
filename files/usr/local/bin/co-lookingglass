@@ -1,0 +1,4 @@
+#!/bin/bash
+# co-lookingglass - make sure the SDR Looking Glass service is up, then open its dashboard window.
+systemctl is-active --quiet sdr-looking-glass || sudo systemctl start sdr-looking-glass
+exec co-webapp lookingglass http://127.0.0.1:8080/

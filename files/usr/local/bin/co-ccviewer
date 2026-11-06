@@ -1,0 +1,6 @@
+#!/bin/bash
+# co-ccviewer - CC Viewer: the uConsole-sized control-channel viewer. Same backend + radio as SDR Looking Glass
+# (the sdr-looking-glass service), its own window/profile at /cc.
+systemctl is-active --quiet sdr-looking-glass || sudo systemctl start sdr-looking-glass
+for i in $(seq 1 20); do curl -s -m 1 -o /dev/null http://127.0.0.1:8080/api/version && break; sleep 0.5; done
+exec co-webapp ccviewer http://127.0.0.1:8080/cc

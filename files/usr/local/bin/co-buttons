@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""co-buttons [install|status] - bind the uConsole X/Y/A/B buttons (F13-F16 via udev hwdb) in labwc:
+  X (F13) fullscreen toggle of the focused window      Y (F14) Looking Glass uConsole mode
+  A (F15) Looking Glass audio on/off                   B (F16) unbound (keyboard backlight needs firmware)
+Idempotent: replaces only the keybinds it owns, then reloads labwc live."""
+import os, subprocess, sys, xml.etree.ElementTree as ET
+
+NS = "http://openbox.org/3.4/rc"; RC = os.path.expanduser("~/.config/labwc/rc.xml")
+BINDS = {"F13": ("ToggleFullscreen", None), "F14": ("Execute", "co-lg-cmd uc"), "F15": ("Execute", "co-lg-cmd audio")}
+
+def main():
+    arg = (sys.argv[1:] or ["status"])[0]
+    ET.register_namespace("", NS)
+    tree = ET.parse(RC) if os.path.exists(RC) else ET.ElementTree(ET.Element("{%s}openbox_config" % NS))
+    root = tree.getroot(); kb = root.find("{%s}keyboard" % NS)
+    if kb is None: kb = ET.SubElement(root, "{%s}keyboard" % NS)
+    mine = [k for k in kb.findall("{%s}keybind" % NS) if k.get("key") in ("F13", "F14", "F15", "F16")]
+    if arg == "status":
+        for k in mine:
+            a = k.find("{%s}action" % NS); print(k.get("key"), a.get("name"), a.get("command") or "")
+        return
+    if arg != "install": print(__doc__); sys.exit(2)
+    for k in mine: kb.remove(k)
+    for key, (name, cmd) in BINDS.items():
+        k = ET.SubElement(kb, "{%s}keybind" % NS, key=key); a = ET.SubElement(k, "{%s}action" % NS, name=name)
+        if cmd: a.set("command", cmd)
+    tree.write(RC, xml_declaration=True, encoding="UTF-8")
+    lp = subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "labwc"], capture_output=True, text=True).stdout.split()
+    if lp:
+        env = dict(os.environ)
+        with open("/proc/%s/environ" % lp[0], "rb") as f:
+            for kv in f.read().split(b"\0"):
+                if b"=" in kv: k_, v = kv.decode(errors="replace").split("=", 1); env[k_] = v
+        env["LABWC_PID"] = lp[0]
+        subprocess.run(["labwc", "--reconfigure"], env=env, check=False)
+    print("buttons bound: X=fullscreen Y=uConsole mode A=audio")
+
+if __name__ == "__main__":
+    main()

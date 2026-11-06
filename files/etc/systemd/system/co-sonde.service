@@ -1,0 +1,14 @@
+[Unit]
+Description=Clockwork Orange Radiosondes (radiosonde_auto_rx on a leased RTL, web map :5000)
+After=network.target gpsd.socket
+
+[Service]
+User=pi
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/clockwork-orange/sonde/sonde.py
+# SIGTERM -> sonde.py stops auto_rx and returns the radio (Looking Glass restarts)
+TimeoutStopSec=30
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=Clockwork Orange APRS Monitor (receive-only APRS map + log, :8094)
+After=network.target gpsd.socket
+Wants=gpsd.socket
+
+[Service]
+User=pi
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/clockwork-orange/aprs/aprs.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

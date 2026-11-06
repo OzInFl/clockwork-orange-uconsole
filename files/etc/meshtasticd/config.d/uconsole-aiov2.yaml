@@ -1,0 +1,14 @@
+# HackerGadgets AIO V2 SX1262 on SPI1 (needs dtoverlay=spi1-1cs; power rail GPIO 16 = co-rail lora)
+Lora:
+  Module: sx1262
+  DIO2_AS_RF_SWITCH: true
+  DIO3_TCXO_VOLTAGE: true
+  IRQ: 26
+  Busy: 24
+  Reset: 25
+  spidev: spidev1.0
+
+# Meshtastic web client (self-signed cert, generated on first start); opened by co-meshtastic-web
+Webserver:
+  Port: 9443
+  RootPath: /usr/share/meshtasticd/web

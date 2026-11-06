@@ -1,0 +1,15 @@
+[Unit]
+Description=Clockwork Orange Pager Recorder (POCSAG/FLEX, :8091)
+After=network-online.target aiov2-rail@sdr.service
+Wants=aiov2-rail@sdr.service
+
+[Service]
+User=pi
+# XDG_RUNTIME_DIR lets pw-play reach the desktop session's PipeWire (alert sounds)
+Environment=XDG_RUNTIME_DIR=/run/user/1000 PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/clockwork-orange/pager/pager.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

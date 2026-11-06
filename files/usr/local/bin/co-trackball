@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""co-trackball [preset|status] - tune the built-in uConsole trackball only (the USB Logitech is untouched).
+
+Presets (libinput via labwc, applied live with `labwc --reconfigure`):
+  smooth    flat profile, medium speed  - no acceleration bursts (default)
+  fast      flat profile, higher speed
+  precise   flat profile, slow          - fine targeting
+  adaptive  libinput default acceleration (what it shipped with)
+The uConsole ball reports coarse hall-sensor steps; adaptive acceleration amplifies each burst into
+a jump, so a flat profile tracks more evenly. Firmware precision mode (Select + click ball) stacks on top.
+"""
+import os, subprocess, sys, xml.etree.ElementTree as ET
+
+DEVICE = "Clockwork uConsole Keyboard Mouse"
+PRESETS = {"smooth": ("flat", "0.25"), "fast": ("flat", "0.6"), "precise": ("flat", "-0.35"), "adaptive": ("adaptive", "0.0")}
+RC = os.path.expanduser("~/.config/labwc/rc.xml")
+NS = "http://openbox.org/3.4/rc"
+
+def load():
+    ET.register_namespace("", NS)
+    if not os.path.exists(RC):
+        os.makedirs(os.path.dirname(RC), exist_ok=True)
+        return ET.ElementTree(ET.Element("{%s}openbox_config" % NS))
+    return ET.parse(RC)
+
+def find_dev(root):
+    for li in root.findall("{%s}libinput" % NS):
+        for d in li.findall("{%s}device" % NS):
+            if d.get("category") == DEVICE: return li, d
+    return None, None
+
+def status(root):
+    _, d = find_dev(root)
+    if d is None: return "adaptive (libinput default, not configured)"
+    get = lambda t: (d.findtext("{%s}%s" % (NS, t)) or "?")
+    prof, speed = get("accelProfile"), get("pointerSpeed")
+    name = next((k for k, v in PRESETS.items() if v == (prof, speed)), "custom")
+    return "%s (accelProfile=%s pointerSpeed=%s)" % (name, prof, speed)
+
+def reconfigure():
+    env = dict(os.environ)
+    lp = subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "labwc"], capture_output=True, text=True).stdout.split()
+    if lp:   # borrow the desktop session env so this works from ssh too
+        with open("/proc/%s/environ" % lp[0], "rb") as f:
+            for kv in f.read().split(b"\0"):
+                if b"=" in kv: k, v = kv.decode(errors="replace").split("=", 1); env[k] = v
+        env["LABWC_PID"] = lp[0]          # labwc sets this for its children, not in its own environ
+    subprocess.run(["labwc", "--reconfigure"], env=env, check=False)
+
+def main():
+    arg = (sys.argv[1:] or ["status"])[0]
+    tree = load(); root = tree.getroot()
+    if arg == "status": print(status(root)); return
+    if arg not in PRESETS: print(__doc__); sys.exit(2)
+    li, d = find_dev(root)
+    if d is None:
+        li = root.find("{%s}libinput" % NS)            # (an empty Element is falsy, so no `or` here)
+        if li is None: li = ET.SubElement(root, "{%s}libinput" % NS)
+        d = ET.SubElement(li, "{%s}device" % NS, category=DEVICE)
+    for tag, val in zip(("accelProfile", "pointerSpeed"), PRESETS[arg]):
+        e = d.find("{%s}%s" % (NS, tag))
+        if e is None: e = ET.SubElement(d, "{%s}%s" % (NS, tag))
+        e.text = val
+    if os.path.exists(RC) and not os.path.exists(RC + ".co-orig"):
+        with open(RC, "rb") as s, open(RC + ".co-orig", "wb") as o: o.write(s.read())   # one-time backup
+    tree.write(RC, xml_declaration=True, encoding="UTF-8")
+    reconfigure()
+    print("trackball ->", status(root))
+
+if __name__ == "__main__":
+    main()

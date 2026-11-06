@@ -1,0 +1,7 @@
+#!/bin/bash
+# co-hub - open the Clockwork Orange Hub. Starts the local hub server (inside the desktop session,
+# so apps it launches get the display) if it isn't already up, then opens it as an app window.
+if ! curl -fs -o /dev/null http://127.0.0.1:8090/apps.json; then
+  setsid nohup python3 /opt/clockwork-orange/hub/hub.py serve >/tmp/co-hub-server.log 2>&1 < /dev/null &
+fi
+exec co-webapp hub http://127.0.0.1:8090/

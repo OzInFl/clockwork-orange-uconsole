@@ -1,0 +1,10 @@
+#!/bin/bash
+# co-dsd [MHz] [mode] - Digital Voice: dsd-fme's ncurses UI with audio on the speaker, tuned on the AIO RTL.
+# Run it through co-sdr-run (the Hub does), which pauses Looking Glass and resumes it on exit. Receive only.
+# mode: a auto (P25/DMR/YSF/D-STAR/X2), s DMR, 1 P25 phase 1, 2 P25 phase 2, n NXDN96, i NXDN48, y YSF, m dPMR, d D-STAR
+f=$1 m=$2
+[ -n "$f" ] || read -rp "Frequency (MHz): " f
+[ -n "$m" ] || read -rp "Mode: a=auto s=DMR 1=P25p1 n=NXDN96 i=NXDN48 y=YSF m=dPMR d=D-STAR [a]: " m
+idx=$(python3 -c 'import sys;sys.path.insert(0,"/opt/clockwork-orange/lib");import co_radio;d=co_radio.devices();print(next((x["index"] for x in d if x["aio"]),0))')
+ppm=$(sed -n 's/^SDR_PPM=\([-0-9.]*\).*/\1/p' /etc/default/sdr-looking-glass 2>/dev/null); ppm=${ppm%.*}
+exec dsd-fme -f"${m:-a}" -N -i "rtl:${idx}:${f}M:40:${ppm:-0}:12:0:2"

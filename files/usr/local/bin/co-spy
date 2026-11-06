@@ -1,0 +1,4 @@
+#!/bin/bash
+# co-spy - System Spy (find + identify + decode signals; 2.4 GHz via the nRF52840 sniffer).
+systemctl is-active --quiet co-spy || sudo systemctl start co-spy
+exec co-webapp spy http://127.0.0.1:8092/

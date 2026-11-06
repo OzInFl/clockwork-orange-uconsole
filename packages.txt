@@ -1,0 +1,10 @@
+# apt packages for the Clockwork Orange base (one per line, # comments ok)
+git
+rtl-sdr
+dfu-util
+sqlite3
+python3-flask
+python3-numpy
+python3-requests
+python3-waitress
+python3-scipy

@@ -1,0 +1,6 @@
+#!/bin/bash
+# co-sonde - Radiosondes: start radiosonde_auto_rx (borrows the RTL), open its map; closing the window stops it
+# and gives the radio back to Looking Glass. `co-sonde --keep` leaves it running after the window closes.
+sudo systemctl start co-sonde
+co-webapp sonde http://127.0.0.1:5000/
+[ "$1" = "--keep" ] || sudo systemctl stop co-sonde

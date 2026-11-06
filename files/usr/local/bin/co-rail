@@ -1,0 +1,15 @@
+#!/bin/bash
+# co-rail - HackerGadgets AIO V2 power rails. Usage: co-rail <sdr|gps|lora|usb|all> [on|off|status]
+# GPIOs are community-documented (forum.clockworkpi.com, AIO V2); on CM4 they are low after boot.
+declare -A PIN=([sdr]=7 [gps]=27 [lora]=16 [usb]=23)
+rail=${1:-all}; act=${2:-status}
+names=("$rail"); [ "$rail" = all ] && names=(sdr gps lora usb)
+for n in "${names[@]}"; do
+  g=${PIN[$n]:-}; [ -n "$g" ] || { echo "unknown rail: $n (sdr|gps|lora|usb)" >&2; exit 2; }
+  case $act in
+    on)  sudo pinctrl set "$g" op dh ;;
+    off) sudo pinctrl set "$g" op dl ;;
+    status) pinctrl get "$g" | grep -q 'op.*| hi' && echo "$n on" || echo "$n off" ;;
+    *) echo "usage: co-rail <rail> [on|off|status]" >&2; exit 2 ;;
+  esac
+done

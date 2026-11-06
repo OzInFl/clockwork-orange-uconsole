@@ -1,0 +1,10 @@
+#!/bin/bash
+# co-webapp <name> <url> [chromium flags...] - open a local web UI as a desktop app window.
+# Native Wayland (doesn't need $DISPLAY/Xwayland), one browser profile per app so a stuck window
+# can't swallow other launches, output logged to /tmp/co-<name>.log.
+name=$1 url=$2; shift 2
+for _ in $(seq 60); do curl -kfs -o /dev/null "$url" && break; sleep 0.5; done
+[ -n "$WAYLAND_DISPLAY" ] && plat=(--ozone-platform=wayland) || plat=()
+exec chromium "${plat[@]}" --app="$url" --start-maximized --class="$name" "$@" \
+  --user-data-dir="$HOME/.config/clockwork-orange/chromium-$name" --no-first-run --password-store=basic \
+  >"/tmp/co-$name.log" 2>&1

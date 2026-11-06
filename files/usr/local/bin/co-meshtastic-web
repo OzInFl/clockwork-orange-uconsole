@@ -1,0 +1,5 @@
+#!/bin/bash
+# co-meshtastic-web - make sure meshtasticd is up, then open its web client. Its cert is self-signed,
+# so this window's own profile skips cert checks (localhost only).
+systemctl is-active --quiet meshtasticd || sudo systemctl start meshtasticd
+exec co-webapp meshtastic https://127.0.0.1:9443/ --ignore-certificate-errors

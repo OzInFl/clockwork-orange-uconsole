@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPS Status</title>
+<style>
+  :root { --bg:#14110f; --panel:#1d1916; --panel-2:#262019; --line:#3a3027; --text:#f3ece4; --muted:#a8998a;
+    --accent:#ff7a1a; --accent-2:#ffb066; --ok:#5fd38d; --warn:#ffcc4d; --bad:#ff5d5d; --off:#6b5e52; --r:12px; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:15px/1.35 "Nunito Sans","Noto Sans",system-ui,sans-serif; }
+  body { display:grid; grid-template-rows:auto 1fr; overflow:hidden; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; background:linear-gradient(90deg,#2a1a0e,var(--panel) 40%); border-bottom:1px solid var(--line); }
+  .brand { font-weight:800; letter-spacing:.12em; font-size:16px; } .brand b { color:var(--accent); }
+  .sp { flex:1; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-size:13px; white-space:nowrap; }
+  .pill b { color:var(--text); }
+  .pill.ok { border-color:#245a3a; } .pill.ok b { color:var(--ok); }
+  .pill.warn { border-color:#6b5a1f; } .pill.warn b { color:var(--warn); }
+  .pill.bad { border-color:#7a2828; } .pill.bad b { color:var(--bad); }
+  button { font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:5px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  main { display:grid; grid-template-columns:400px 1fr 380px; gap:10px; padding:10px; min-height:0; overflow:auto; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; margin-bottom:10px; }
+  .card h3 { margin:0 0 8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); display:flex; gap:8px; align-items:center; }
+  .card h3 .sp { flex:1; }
+  canvas { display:block; width:100%; }
+  .big { font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
+  .mid { font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .mut { color:var(--muted); } .small { font-size:12px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
+  .kv .k { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .kv .v { font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .diag { border-left:4px solid var(--warn); padding:6px 10px; margin:6px 0; background:var(--panel-2); border-radius:8px; }
+  .diag.bad { border-color:var(--bad); } .diag.ok { border-color:var(--ok); }
+  .diag b { display:block; }
+  .legend span { display:inline-flex; align-items:center; gap:4px; margin-right:10px; }
+  .sw { width:10px; height:10px; border-radius:2px; display:inline-block; }
+  #toast { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; display:none; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><b>GPS</b> STATUS</span>
+  <span class="pill" id="pFix"><b>—</b></span>
+  <span class="pill" id="pSat">satellites <b>—</b></span>
+  <span class="pill" id="pAnt">antenna <b>—</b></span>
+  <span class="pill" id="pRail">GPS power <b>—</b></span>
+  <span class="sp"></span>
+  <span class="pill">UTC <b id="pUtc">—</b></span>
+  <span class="pill">local <b id="pLoc">—</b></span>
+  <button id="coScreen" title="uConsole screen + app launcher in this browser (remote console)" onclick="window.open('https://'+location.hostname+':6080/','co-screen')">&#128421; Screen</button><script>if(/^(127\.|localhost$|\[?::1)/.test(location.hostname))document.getElementById('coScreen').style.display='none'</script>
+</header>
+<main>
+  <div>
+    <div class="card"><h3>Sky view <span class="sp"></span><span class="small mut" style="letter-spacing:0;text-transform:none">N up · center = overhead</span></h3>
+      <canvas id="sky" width="760" height="760"></canvas>
+      <div class="legend small mut" style="margin-top:6px"><span>&#9679; GPS</span><span>&#9632; BeiDou</span><span>&#9670; Galileo</span><span>&#9650; GLONASS</span><span>&#9733; SBAS/QZSS</span><span>filled = used in fix</span></div>
+    </div>
+  </div>
+  <div>
+    <div class="card"><h3>What's going on</h3><div id="diag"></div></div>
+    <div class="card"><h3>Position</h3>
+      <div class="big" id="lat">—</div><div class="big" id="lon">—</div>
+      <div class="small mut" id="dms" style="margin:4px 0 10px">—</div>
+      <div class="grid2">
+        <div class="kv"><div class="k">Grid square</div><div class="v" id="grid">—</div></div>
+        <div class="kv"><div class="k">Accuracy (horizontal)</div><div class="v" id="acc">—</div></div>
+        <div class="kv"><div class="k">Altitude</div><div class="v" id="alt">—</div></div>
+        <div class="kv"><div class="k">Vertical accuracy</div><div class="v" id="vacc">—</div></div>
+      </div>
+      <div class="row small" style="margin-top:10px"><a id="map" target="_blank" style="color:var(--accent-2)"></a></div>
+    </div>
+    <div class="card"><h3>Motion</h3>
+      <div style="display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center">
+        <canvas id="cmp" width="300" height="300"></canvas>
+        <div class="grid2">
+          <div class="kv"><div class="k">Speed</div><div class="v" id="spd">—</div></div>
+          <div class="kv"><div class="k">Heading</div><div class="v" id="hdg">—</div></div>
+          <div class="kv"><div class="k">Climb</div><div class="v" id="clb">—</div></div>
+          <div class="kv"><div class="k">Time to first fix</div><div class="v" id="ttff">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card"><h3>Signal strength (dB-Hz) <span class="sp"></span><span class="small mut" style="letter-spacing:0;text-transform:none">&lt;20 weak · 30+ good · 40+ strong</span></h3><canvas id="bars" width="740" height="260"></canvas></div>
+    <div class="card"><h3>Precision (DOP) <span class="sp"></span><span class="small mut" style="letter-spacing:0;text-transform:none">lower is better · &lt;2 excellent</span></h3><div id="dop" class="grid2"></div></div>
+    <div class="card"><h3>Track <span class="sp"></span><button id="tClr" style="padding:1px 8px;font-size:12px">clear</button></h3><canvas id="trail" width="740" height="300"></canvas><div class="small mut" id="trInfo"></div></div>
+    <div class="card small mut" id="dev"></div>
+  </div>
+</main>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id), E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=(p,b)=>fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(r=>r.json());
+function toast(t){const x=$('toast');x.textContent=t;x.style.display='block';clearTimeout(x._t);x._t=setTimeout(()=>x.style.display='none',2500);}
+const CSS=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const ssCol=s=>s==null||s<=0?'#6b5e52':s<20?'#ff5d5d':s<30?'#ffcc4d':s<40?'#9fd36f':'#5fd38d';
+const GN={0:'GPS',1:'SBAS',2:'Galileo',3:'BeiDou',4:'IMES',5:'QZSS',6:'GLONASS',7:'NavIC'};
+let D=null;
+
+function dms(v,pos,neg){if(v==null)return '';const a=Math.abs(v),d=Math.floor(a),m=Math.floor((a-d)*60),s=((a-d)*60-m)*60;return `${d}°${String(m).padStart(2,'0')}′${s.toFixed(2).padStart(5,'0')}″${v>=0?pos:neg}`;}
+function grid(lat,lon){if(lat==null)return '—';let x=lon+180,y=lat+90;const A='ABCDEFGHIJKLMNOPQR',a='abcdefghijklmnopqrstuvwx';
+  let g=A[Math.floor(x/20)]+A[Math.floor(y/10)];x%=20;y%=10;g+=Math.floor(x/2)+''+Math.floor(y);x%=2;y%=1;return g+a[Math.floor(x*12)]+a[Math.floor(y*24)];}
+const ft=m=>m==null?'—':`${Math.round(m*3.28084).toLocaleString()} ft <span class="small mut">${Math.round(m)} m</span>`;
+const acc=m=>m==null?'—':`±${m<10?m.toFixed(1):Math.round(m)} m <span class="small mut">±${Math.round(m*3.28084)} ft</span>`;
+const card=d=>d==null?'—':['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(d/22.5)%16];
+
+function drawSky(sats){const c=$('sky'),g=c.getContext('2d'),W=c.width,R=W/2-40,cx=W/2,cy=W/2;g.clearRect(0,0,W,W);
+  g.strokeStyle='#3a3027';g.lineWidth=2;g.fillStyle='#a8998a';g.font='22px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  [0,30,60].forEach(el=>{g.beginPath();g.arc(cx,cy,R*(90-el)/90,0,7);g.stroke();if(el)g.fillText(el+'°',cx+6+R*(90-el)/90*.71,cy-R*(90-el)/90*.71);});
+  for(let a=0;a<360;a+=30){const r=a*Math.PI/180;g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+R*Math.sin(r),cy-R*Math.cos(r));g.stroke();}
+  g.font='bold 26px sans-serif';g.fillStyle='#ffb066';[['N',0],['E',90],['S',180],['W',270]].forEach(([t,a])=>{const r=a*Math.PI/180;g.fillText(t,cx+(R+22)*Math.sin(r),cy-(R+22)*Math.cos(r));});
+  const vis=sats.filter(s=>s.el!=null&&s.az!=null&&s.el>=0);
+  vis.forEach(s=>{const r=R*(90-s.el)/90,a=s.az*Math.PI/180,x=cx+r*Math.sin(a),y=cy-r*Math.cos(a),col=ssCol(s.ss),z=17;
+    g.lineWidth=3;g.strokeStyle=col;g.fillStyle=s.used?col:'#1d1916';g.beginPath();
+    const gn=s.gnssid;
+    if(gn===3)g.rect(x-z,y-z,2*z,2*z);
+    else if(gn===2){g.moveTo(x,y-z-3);g.lineTo(x+z+3,y);g.lineTo(x,y+z+3);g.lineTo(x-z-3,y);g.closePath();}
+    else if(gn===6){g.moveTo(x,y-z-4);g.lineTo(x+z+3,y+z);g.lineTo(x-z-3,y+z);g.closePath();}
+    else if(gn===1||gn===5){for(let i=0;i<10;i++){const rr=i%2?z*.55:z+4,aa=i*Math.PI/5-Math.PI/2;i?g.lineTo(x+rr*Math.cos(aa),y+rr*Math.sin(aa)):g.moveTo(x+rr*Math.cos(aa),y+rr*Math.sin(aa));}g.closePath();}
+    else g.arc(x,y,z,0,7);
+    g.fill();g.stroke();g.fillStyle=s.used?'#140c05':'#f3ece4';g.font='bold 15px sans-serif';g.fillText(s.svid??s.PRN,x,y+1);});
+  if(!vis.length){g.fillStyle='#a8998a';g.font='26px sans-serif';g.fillText('no satellites in view',cx,cy);}}
+
+function drawBars(sats){const c=$('bars'),g=c.getContext('2d'),W=c.width,H=c.height;g.clearRect(0,0,W,H);
+  const L=[...sats].sort((a,b)=>(b.used-a.used)||((b.ss||0)-(a.ss||0))).slice(0,24),n=Math.max(L.length,8),bw=(W-30)/n,max=50;
+  g.strokeStyle='#3a3027';g.fillStyle='#a8998a';g.font='15px sans-serif';g.textAlign='right';
+  [10,20,30,40,50].forEach(v=>{const y=H-34-(v/max)*(H-50);g.beginPath();g.moveTo(26,y);g.lineTo(W,y);g.stroke();g.fillText(v,22,y+5);});
+  g.textAlign='center';
+  L.forEach((s,i)=>{const v=Math.min(max,s.ss||0),h=(v/max)*(H-50),x=30+i*bw+3;g.fillStyle=ssCol(s.ss);g.globalAlpha=s.used?1:.45;g.fillRect(x,H-34-h,bw-6,h);g.globalAlpha=1;
+    g.fillStyle=s.used?'#f3ece4':'#a8998a';g.font=(s.used?'bold ':'')+'14px sans-serif';g.fillText(s.svid??s.PRN,x+(bw-6)/2,H-18);
+    g.font='11px sans-serif';g.fillStyle='#a8998a';g.fillText((GN[s.gnssid]||'').slice(0,3),x+(bw-6)/2,H-4);});
+  if(!L.length){g.fillStyle='#a8998a';g.font='20px sans-serif';g.fillText('no satellite signals',W/2,H/2);}}
+
+function drawCompass(trk,spd){const c=$('cmp'),g=c.getContext('2d'),W=c.width,cx=W/2,R=W/2-24;g.clearRect(0,0,W,W);
+  g.strokeStyle='#3a3027';g.lineWidth=3;g.beginPath();g.arc(cx,cx,R,0,7);g.stroke();
+  g.fillStyle='#ffb066';g.font='bold 24px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  [['N',0],['E',90],['S',180],['W',270]].forEach(([t,a])=>{const r=a*Math.PI/180;g.fillText(t,cx+(R-22)*Math.sin(r),cx-(R-22)*Math.cos(r));});
+  for(let a=0;a<360;a+=15){const r=a*Math.PI/180,l=a%45?8:16;g.beginPath();g.moveTo(cx+R*Math.sin(r),cx-R*Math.cos(r));g.lineTo(cx+(R-l)*Math.sin(r),cx-(R-l)*Math.cos(r));g.stroke();}
+  if(trk!=null&&spd!=null&&spd>0.5){const r=trk*Math.PI/180;g.fillStyle='#ff7a1a';g.beginPath();g.moveTo(cx+(R-40)*Math.sin(r),cx-(R-40)*Math.cos(r));
+    g.lineTo(cx+18*Math.sin(r+2.4),cx-18*Math.cos(r+2.4));g.lineTo(cx+18*Math.sin(r-2.4),cx-18*Math.cos(r-2.4));g.closePath();g.fill();}
+  else{g.fillStyle='#6b5e52';g.font='18px sans-serif';g.fillText('stationary',cx,cx);}}
+
+function drawTrail(tr){const c=$('trail'),g=c.getContext('2d'),W=c.width,H=c.height;g.clearRect(0,0,W,H);
+  if(!tr.length){g.fillStyle='#a8998a';g.font='20px sans-serif';g.textAlign='center';g.fillText('no positions yet',W/2,H/2);$('trInfo').textContent='';return;}
+  const la=tr.map(p=>p[0]),lo=tr.map(p=>p[1]),mla=(Math.min(...la)+Math.max(...la))/2,k=Math.cos(mla*Math.PI/180);
+  let sx=(Math.max(...lo)-Math.min(...lo))*k,sy=Math.max(...la)-Math.min(...la),span=Math.max(sx,sy,0.00005);
+  const mlo=(Math.min(...lo)+Math.max(...lo))/2,s=Math.min(W,H)*.85/span,X=v=>W/2+(v-mlo)*k*s,Y=v=>H/2-(v-mla)*s;
+  g.strokeStyle='#ffb066';g.lineWidth=3;g.beginPath();tr.forEach((p,i)=>i?g.lineTo(X(p[1]),Y(p[0])):g.moveTo(X(p[1]),Y(p[0])));g.stroke();
+  const l=tr[tr.length-1];g.fillStyle='#ff7a1a';g.beginPath();g.arc(X(l[1]),Y(l[0]),8,0,7);g.fill();
+  const m=span*111320;$('trInfo').textContent=`${tr.length} points · view ≈ ${m<1000?Math.round(m)+' m':(m/1000).toFixed(1)+' km'} across · since ${new Date(tr[0][2]*1000).toLocaleTimeString([], {hour12:false})}`;}
+
+function diag(d){const t=d.tpv||{},mode=t.mode||0,seen=d.sats.length,ss=d.sats.filter(s=>s.ss>0).length,used=d.sats.filter(s=>s.used).length,out=[];
+  const A=(cls,h,b)=>out.push(`<div class="diag ${cls}"><b>${h}</b>${b}</div>`);
+  const silent=!d.nmea_t||d.now-d.nmea_t>5;
+  if(!d.gpsd)A('bad','gpsd is not running','The GPS service isn\'t reachable. Try: sudo systemctl restart gpsd');
+  else if(d.rail===false)A('bad','GPS power is off','The AIO V2 GPS rail (GPIO 27) is off, so the module sends nothing. <button id="railOn">Turn GPS power on</button>');
+  else if(silent)A('bad','No data from the GPS module','gpsd is up but no NMEA sentences are arriving on /dev/ttyS0. Check the GPS rail and the serial baud.');
+  else{
+    if(mode>=3)A('ok','3D fix',`Position from ${used} satellite(s); horizontal accuracy about ${t.eph!=null?'±'+Math.round(t.eph)+' m':'unknown'}.`);
+    else if(mode===2)A('','2D fix only','Position but no altitude: fewer than 4 good satellites. More open sky helps.');
+    if(d.antenna&&/OPEN/.test(d.antenna)&&mode<2)A(ss?'':'bad','Module reports ANTENNA OPEN',`The GPS chip senses no current on its antenna connector. ${ss?'Satellites are still being heard, so a passive antenna is probably fine.':'With no satellites heard at all, check: is the antenna on the GPS connector (not SDR/LoRa)? is an internal U.FL pigtail seated? A passive antenna also shows OPEN but should still hear satellites outdoors.'}`);
+    if(d.antenna&&/SHORT/.test(d.antenna))A('bad','Antenna SHORT','The module detects a short on the antenna feed: damaged cable or connector.');
+    if(mode<2&&!ss)A('','No satellite signals yet',`Waiting ${d.nofix_since?Math.round((d.now-d.nofix_since)/60)+' min':''}. Indoors a GPS often hears nothing; go outside or to a window with open sky. A cold start can take 2-12 minutes.`);
+    else if(mode<2)A('',`Hearing ${ss} satellite(s), no fix yet`,'Needs 4 usable satellites with decent signal (30+ dB-Hz). Keep the antenna clear of the body and metal.');
+    if(mode>=2&&t.eph>50)A('','Accuracy is poor','Large error estimate: few satellites, low elevations, or reflections (buildings).');
+  }
+  if(d.txt&&d.txt.length)out.push(`<div class="small mut">Module messages: ${d.txt.map(E).join(' · ')}</div>`);
+  return out.join('');}
+
+function render(){const d=D,t=d.tpv||{},mode=t.mode||0,sky=d.sky||{};
+  const used=d.sats.filter(s=>s.used).length,seen=d.sats.filter(s=>s.ss>0).length;
+  $('pFix').className='pill '+(mode>=3?'ok':mode===2?'warn':'bad');$('pFix').innerHTML='<b>'+(mode>=3?'3D FIX':mode===2?'2D FIX':'NO FIX')+'</b>';
+  $('pSat').innerHTML=`satellites <b>${used} used / ${seen} heard</b> <span class="small">${d.sats.length} in view</span>`;
+  const an=d.antenna;$('pAnt').className='pill '+(!an?'':/OK/.test(an)?'ok':/SHORT/.test(an)?'bad':'warn');$('pAnt').innerHTML='antenna <b>'+E(an||'not reported')+'</b>';
+  $('pRail').className='pill '+(d.rail?'ok':d.rail===false?'bad':'');$('pRail').innerHTML='GPS power <b>'+(d.rail?'on':d.rail===false?'off':'?')+'</b>';
+  const tm=t.time?new Date(t.time):null;$('pUtc').textContent=tm?tm.toISOString().slice(11,19):'—';$('pLoc').textContent=new Date().toLocaleTimeString([], {hour12:false});
+  const ok=mode>=2&&t.lat!=null;
+  $('lat').textContent=ok?Math.abs(t.lat).toFixed(6)+'° '+(t.lat>=0?'N':'S'):'—';$('lon').textContent=ok?Math.abs(t.lon).toFixed(6)+'° '+(t.lon>=0?'E':'W'):'—';
+  $('dms').textContent=ok?dms(t.lat,'N','S')+'  '+dms(t.lon,'E','W'):'waiting for a fix';
+  $('grid').textContent=ok?grid(t.lat,t.lon):'—';$('acc').innerHTML=ok?acc(t.eph):'—';
+  $('alt').innerHTML=mode>=3?ft(t.altMSL??t.alt):'—';$('vacc').innerHTML=mode>=3?acc(t.epv):'—';
+  $('map').textContent=ok?'Open in OpenStreetMap (needs internet)':'';$('map').href=ok?`https://www.openstreetmap.org/?mlat=${t.lat}&mlon=${t.lon}#map=16/${t.lat}/${t.lon}`:'#';
+  $('spd').innerHTML=ok&&t.speed!=null?`${(t.speed*2.23694).toFixed(1)} mph <span class="small mut">${(t.speed*3.6).toFixed(1)} km/h</span>`:'—';
+  $('hdg').textContent=ok&&t.track!=null&&t.speed>0.5?Math.round(t.track)+'° '+card(t.track):'—';
+  $('clb').textContent=mode>=3&&t.climb!=null?(t.climb*196.85).toFixed(0)+' ft/min':'—';
+  $('ttff').textContent=d.ttff!=null?(d.ttff<90?d.ttff+' s':Math.round(d.ttff/60)+' min'):d.nofix_since?'waiting '+Math.round((d.now-d.nofix_since))+' s':'—';
+  $('dop').innerHTML=[['hdop','Horizontal'],['vdop','Vertical'],['pdop','Position'],['tdop','Time']].map(([k,n])=>{const v=sky[k];const good=v&&v>0;
+    const col=!good?'#6b5e52':v<2?'#5fd38d':v<5?'#9fd36f':v<10?'#ffcc4d':'#ff5d5d';
+    return `<div class="kv"><div class="k">${n}</div><div class="v" style="color:${col}">${good?v.toFixed(2):'—'}</div></div>`;}).join('');
+  drawSky(d.sats);drawBars(d.sats);drawCompass(t.track,t.speed);drawTrail(d.trail||[]);
+  $('diag').innerHTML=diag(d);if($('railOn'))$('railOn').onclick=()=>api('/api/rail',{on:true}).then(()=>toast('GPS power on'));
+  const dv=d.device||{};$('dev').innerHTML=`Receiver: ${E(dv.driver||'?')} ${E(dv.subtype||'')} on ${E(dv.path||'?')} at ${E(dv.bps||'?')} baud · last NMEA ${d.nmea_t?Math.max(0,Math.round(d.now-d.nmea_t))+' s ago':'never'}${d.err?' · <span style="color:var(--bad)">'+E(d.err)+'</span>':''}`;}
+
+$('tClr').onclick=()=>api('/api/trail/clear').then(()=>toast('track cleared'));
+async function load(){D=await (await fetch('/api/state')).json();render();}
+function stream(){const es=new EventSource('/api/stream');es.onmessage=e=>{const ev=JSON.parse(e.data);if(ev.t==='gps'){D=ev.d;render();}};es.onerror=()=>{es.close();setTimeout(stream,3000);};}
+load();stream();
+</script>
+</body>
+</html>

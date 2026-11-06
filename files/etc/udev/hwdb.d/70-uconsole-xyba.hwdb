@@ -1,0 +1,7 @@
+# uConsole X/Y/A/B buttons (j1n6 QMK keyboard mode sends SysRq/Menu/Execute/Stop; the kernel maps
+# SysReq/Attention to KEY_UNKNOWN, so X did nothing). Give all four unique keys for labwc keybinds.
+evdev:input:b0003vFEEDp0000*
+ KEYBOARD_KEY_7009a=f13
+ KEYBOARD_KEY_70076=f14
+ KEYBOARD_KEY_70074=f15
+ KEYBOARD_KEY_70078=f16

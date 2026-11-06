@@ -1,0 +1,10 @@
+#!/bin/bash
+# co-lora-run <cmd...> - run a tool that needs the AIO V2 LoRa radio. Pauses meshtasticd (it holds the
+# SX1262) and resumes it when the tool exits, also on SIGHUP/kill (EXIT trap). Same idea as co-sdr-run for the RTL.
+was=$(systemctl is-active meshtasticd 2>/dev/null)
+resume() { [ "$was" = active ] && { echo "[co] resuming meshtasticd"; sudo systemctl start meshtasticd; }; }
+trap resume EXIT
+trap 'exit 129' HUP TERM INT
+[ "$was" = active ] && { echo "[co] pausing meshtasticd to free the LoRa radio"; sudo systemctl stop meshtasticd; sleep 1; }
+set -a; [ -f /etc/default/meshcore-uconsole ] && . /etc/default/meshcore-uconsole; set +a
+"$@"

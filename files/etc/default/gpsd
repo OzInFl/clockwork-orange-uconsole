@@ -1,0 +1,9 @@
+# Clockwork Orange: AIO V2 GPS on the CM4 UART (rail: co-rail gps = GPIO 27). Poll even with no clients.
+START_DAEMON="true"
+USBAUTO="false"
+DEVICES="/dev/ttyS0"
+# -n: poll even with no clients. No -s: autobaud (the module has come up at both 9600 and 115200).
+# -b: never write to the module. It's a CASIC URANUS5 (ATGM336H-class) u-blox clone; gpsd's u-blox driver
+#     switched it to a partial UBX mode with no satellite list (empty sky view) and fiddled its baud.
+# No trailing comments on value lines: systemd passes them to gpsd as arguments (gpsd failed: "invalid option #").
+GPSD_OPTIONS="-n -b"
