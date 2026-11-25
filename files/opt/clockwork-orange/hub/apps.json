@@ -1,8 +1,10 @@
 {
   "groups": ["Trunking", "Receivers", "Decoders", "Mesh", "Navigation", "Analysis", "Surveillance", "System"],
   "apps": [
-    {"id": "lookingglass", "name": "SDR Looking Glass", "desc": "P25 / DMR trunking analyzer", "group": "Trunking",
+    {"id": "lookingglass", "name": "SDR Looking Glass", "desc": "P25 trunking analyzer", "group": "Trunking",
      "icon": "co-lookingglass", "exec": "co-lookingglass", "desktop": true, "web": "http://{host}:8080/"},
+    {"id": "trbo", "name": "TRBO Monitor", "desc": "MOTOTRBO / DMR repeaters + Capacity Max: live calls, GPS map, traffic + usage logging", "group": "Trunking",
+     "icon": "co-trbo", "exec": "co-trbo", "desktop": true, "web": "http://{host}:8080/trbo"},
     {"id": "ccviewer", "name": "CC Viewer", "desc": "P25 control channel info, seek + radio watch", "group": "Trunking",
      "icon": "co-ccviewer", "exec": "co-ccviewer", "desktop": true, "web": "http://{host}:8080/cc"},
     {"id": "sdrpp", "name": "SDR++", "desc": "Wideband receiver + waterfall", "group": "Receivers",

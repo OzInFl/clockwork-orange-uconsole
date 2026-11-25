@@ -45,6 +45,7 @@ The Hub opens from the **Clockwork Orange** menu folder or desktop icon, or with
 |---|---|---|
 | **Hub** | 8090 | Launcher + status (radio rails, services, temperature) for everything below |
 | **[SDR Looking Glass](https://github.com/OzInFl/sdr-looking-glass-uconsole)** | 8080 | P25 trunking analyzer on OP25: live calls + audio, control-channel viewer, System Hunter, drive survey, diagnostics |
+| **TRBO Monitor** | 8080/trbo | MOTOTRBO / DMR: conventional repeaters (every repeater + timeslot at once) and Capacity Max; live calls + audio, radio GPS map, and traffic logging with utilization, Erlangs, busy hours and a P25 migration calculator. Part of Looking Glass |
 | **Pager Recorder** | 8091 | POCSAG / FLEX recorder with per-capcode labels, alert sounds, tone-only filter |
 | **System Spy** | 8092 | Find, identify and decode signals: sweep, ACARS, VDL2, AIS, utility meters, digital voice IDs, Meteor-M weather satellites, Zigbee/Thread (with an nRF52840 sniffer) |
 | **GPS Status** | 8093 | Sky plot, SNR, DOP, fix quality, grid square, antenna state |
@@ -141,7 +142,7 @@ which pauses Looking Glass (it holds the RTL) and resumes it on exit.
 ## Device commands
 `co-hub` (hub window) · `co-launch <id>` · `co-rail <sdr|gps|lora|usb|all> [on|off|status]` ·
 `co-sdr-run <cmd>` · `co-lora-run <cmd>` · `co-aprs` · `co-pager` · `co-spy` · `co-gps` · `co-sonde` ·
-`co-dsd [MHz] [mode]` · `co-lookingglass` · `co-ccviewer`
+`co-dsd [MHz] [mode]` · `co-lookingglass` · `co-ccviewer` · `co-trbo [tab]`
 
 ## Credits
 

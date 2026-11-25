@@ -1,0 +1,6 @@
+#!/bin/bash
+# co-trbo - TRBO Monitor: MOTOTRBO / DMR repeaters + Capacity Max, live calls and traffic logging. Runs inside
+# the SDR Looking Glass service (same radio), its own window/profile at /trbo.
+systemctl is-active --quiet sdr-looking-glass || sudo systemctl start sdr-looking-glass
+for i in $(seq 1 20); do curl -s -m 1 -o /dev/null http://127.0.0.1:8080/api/version && break; sleep 0.5; done
+exec co-webapp trbo "http://127.0.0.1:8080/trbo${1:+#$1}"
